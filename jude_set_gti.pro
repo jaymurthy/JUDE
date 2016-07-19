@@ -1,6 +1,6 @@
 ;+
-; NAME:		SET_GTI
-; PURPOSE:	Find good time intervals
+; NAME:		JUDE_SET_GTI
+; PURPOSE:	Perform sanity checks on data
 ; CALLING SEQUENCE:
 ;	success = set_gti(data_hdr, data_l1, data_l1a, hk, att)
 ; INPUTS
@@ -8,20 +8,21 @@
 ;	hk			: Housekeeping file from read_hk_file
 ;	att			: Attitude file from read_att_File
 ; OUTPUTS:
-;	data_l1a		: structure containing:
-;				time:	Double
-;				gti :	Good: 0; Bad: 1
-;				roll_ra:Ra from boresight angle
-;				roll_dec: Dec from boresight angle
-;				roll_rot: Angle from boresight
+;	data_l1a	: structure containing:
+;					time	:	Double
+;					gti 	:	Good: 0; Other values set as per program. Code TBD
+;					roll_ra	: Ra from boresight angle
+;					roll_dec: Dec from boresight angle
+;					roll_rot: Angle from boresight
 ;	success:	1 for successful return; 0 for problematic data
 ;	Included functions:
 ;				set_hk
 ;				check_bod
 ; RESTRICTIONS
-;	No safety checks
 ; MODIFICATION HISTORY:
-;	JM: June 1, 2016
+;	JM: June 1,  2016
+;	JM: July 15, 2016: Cleanup
+;	JM: July 16, 2016: Fixed bug introduced during cleanup
 ; COPYRIGHT:
 ;Copyright 2016 Jayant Murthy
 ;
@@ -63,25 +64,29 @@ function jude_set_gti, data_hdr, data_l1, data_l1a, hk, att, out_hdr
 	exit_success = 1
 	exit_failure = 0
 	nelems = n_elements(data_l1)
-	gti_value = 30
+	gti_value = 30; Arbitraty GTI value from here. Final codes TBD
 
 ;Nominal parameters from data header
 	detector = strcompress(sxpar(data_hdr, "detector"),/remove)
+;Note that the filter value has been known to be wrong
 	nom_filter = strcompress(sxpar(data_hdr, "filter"),/remove)
-	
+
+;****************************  DEFINITIONS ********************************
+;The filter definitions are from documents in my possession. The voltages
+;were obtained by looking at the data
 	if (detector eq "FUV")then begin
-		filter = ['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F0']
-		filter_angle = [46.09, 91.31, 136.45, 181.32, 226.24, 271.386, $
-						316.43, 1.1206]
-		det_volt = [-237.384, 5011.44, 2293.77]
+		filter 			= ['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F0']
+		filter_angle 	= [46.09, 91.31, 136.45, 181.32, 226.24, 271.386, $
+								316.43, 1.1206]
+		det_volt 		= [-237.384, 5011.44, 2293.77]
 	endif else if (detector eq "NUV")then begin
 		filter = ['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F0']
-		filter_angle = [316.1666, 271.1663, 226.122, 181.2097, 136.319, $
-						91.143, 45.923, 0.9668]
-		det_volt = [-181.806, 5050, 2091.24]
+		filter_angle 	= [316.1666, 271.1663, 226.122, 181.2097, 136.319, $
+								91.143, 45.923, 0.9668]
+		det_volt 		= [-181.806, 5050, 2091.24]
 	endif else begin
 		jude_err_process,"errors.txt","Detector not FUV or NUV"
-		print,"No BOD in file"
+		print,"I only operate on FUV and NUV "
 		return,exit_failure
 	endelse
 
@@ -91,10 +96,12 @@ function jude_set_gti, data_hdr, data_l1, data_l1a, hk, att, out_hdr
 	filter_fuzz = 1	;Allow a 1 degree recording error.
 	q = where(filter eq nom_filter)
 	nom_filter_angle = filter_angle(q)
-	filter_change = 0; I only want to use one filter
+	filter_change = 0; I only want to use one filter in the image
 
 ;The HK and the attitude files are long and searching through is time-consuming.
-;I therefore cut the files down to match the data file
+;I therefore cut the files down to match the data file.
+;There are some cases where bits of data are added on at the end so
+;I also get rid of big time jumps.
 	t = data_l1a[1:nelems - 1].time - data_l1a[0:nelems - 2].time
 	q = min(where(t gt 1000,nq))
 	if (nq gt 0)then begin
@@ -109,90 +116,91 @@ function jude_set_gti, data_hdr, data_l1, data_l1a, hk, att, out_hdr
 	index_max 	= min(where(hk.time ge max(data_l1a.time))) > index_min
 	hk  		= hk(index_min:index_max)
 
-;Fill up the attitude file
+;Populate the attitudes
 	for ielem = 0l, nelems - 1 do begin
+		index0 = max(where(att.time le data_l1a[ielem].time, nq0))
+		index1 = min(where(att.time ge data_l1a[ielem].time, nq1))
+		if ((nq0 eq 0) or (nq1 eq 0))then $
+			data_l1a[ielem].gti = data_l1a[ielem].gti + gti_value 
 		if (data_l1a[ielem].gti eq 0)then begin
-			index0 = max(where(att.time le data_l1a[ielem].time, nq0))
-			index1 = min(where(att.time ge data_l1a[ielem].time, nq1))
-			if ((nq0 eq 0) or (nq1 eq 0))then begin
-;If there is no time overlap set the GTI to 1
-				data_l1a[ielem].gti = gti_value
-			endif
-			if (data_l1a[ielem].gti eq 0)then begin
-				data_l1a[ielem].roll_ra  = att[index0].roll_ra
-				data_l1a[ielem].roll_dec = att[index0].roll_dec
-				data_l1a[ielem].roll_rot = att[index0].roll_rot
-			endif
+			data_l1a[ielem].roll_ra  = att[index0].roll_ra
+			data_l1a[ielem].roll_dec = att[index0].roll_dec
+			data_l1a[ielem].roll_rot = att[index0].roll_rot
 		endif
 	endfor
-
-;Run through the housekeeping data looking for anomolies
 	old_time = 0
-;There is an offset for the frame count.
-	frame = data_l1.sechdrimageframecount + 32768
+	frame = data_l1.sechdrimageframecount + 32768 ;Apply offset
+
+;********************************BEGIN PROCESSING*************************
 	for ielem = 0l, nelems - 1 do begin
-;We only check if the data is good
 		if (data_l1a[ielem].gti eq 0)then begin
+;We only have check if the data are good
+		
+;If the frame count goes backwards I mark the data bad.
 			if (frame[ielem] lt frame[ielem - 1])then begin
-				data_l1a[ielem:nelems-1].gti = gti_value
+				data_l1a[ielem:nelems-1].gti = data_l1a[ielem:nelems-1].gti +$
+											   gti_value
 				str = "Frame goes backward at frame " + string(ielem)
 				str = strcompress(str)
 				jude_err_process,"errors.txt", str
 			endif
-
-;Match the housekeeping to the image data
+	
+;Match the housekeeping to the image data by time
 			index0 = max(where(hk.time le data_l1a[ielem].time, nq0))
 			index1 = min(where(hk.time ge data_l1a[ielem].time, nq1))
-			if ((nq0 eq 0) or (nq1 eq 0))then begin
-;If no match then set the GTI to 1
-				data_l1a[ielem].gti = gti_value
+			if ((nq0 eq 0) or (nq1 eq 0))then $
+				data_l1a[ielem].gti = data_l1a[ielem].gti + $
+									gti_value	;If I don't find a match
+	
+;***************************FILTER CHECK******************************
+;Check to make sure that the actual filter is the same as the recorded filter.
+;Isn't it crazy to have to check this but necessary because the Level 1 data
+;is sometimes wrong. However, I only want to check it once because I want
+;all the data in file to be from the same filter. Thus I mark the data before 
+;the first filter "change" as bad.
+			if ((abs(hk(index0).filter - nom_filter_angle) gt filter_fuzz) or $
+				(abs(hk(index1).filter - nom_filter_angle) gt filter_fuzz))then begin
+				if (filter_change eq 0)then begin
+					q = where (abs(hk(index1).filter - filter_angle) lt filter_fuzz)
+					nom_filter_angle = hk(index0).filter
+					nom_filter = filter(q[0])
+					sxaddpar,out_hdr,"FILTER", nom_filter,$
+						"F0=closed, F1,F2..Fn(n=1-7 for FUV, NUV; n=1-5"
+					str = "Changing filter to " + strcompress(string(nom_filter))
+					str = str +  " at time " + string(hk[index1].time)
+					str = strcompress(str)
+					jude_err_process,"errors.txt", str
+					filter_change = 1
+					data_l1a[0:ielem].gti = data_l1a[0:ielem].gti + $
+								gti_value ;Set GTI before first filter change
+				endif else begin
+					str = "Ignoring data because filter has changed to  " + $
+					strcompress(string(nom_filter))
+					str = str +  " at time " + string(hk[index1].time)
+					str = strcompress(str)
+					jude_err_process,"errors.txt", str
+					data_l1a(ielem).gti = data_l1a(ielem).gti + gti_value
+				endelse
 			endif
-			
-;Only begin if we have good data
-			if (data_l1a[ielem].gti eq 0)then begin	
-				if ((abs(hk(index0).filter - nom_filter_angle) gt filter_fuzz) or $
-					(abs(hk(index1).filter - nom_filter_angle) gt filter_fuzz))then begin
-					if (filter_change eq 0)then begin
-;Record the filter change
-						q = where (abs(hk(index1).filter - filter_angle) lt filter_fuzz)
-						nom_filter_angle = hk(index0).filter
-						nom_filter = filter(q[0])
-						sxaddpar,out_hdr,"FILTER", nom_filter,$
-							"F0=closed, F1,F2..Fn(n=1-7 for FUV, NUV; n=1-5"
-						str = "Changing filter to " + strcompress(string(nom_filter))
-						str = str +  " at time " + string(hk[index1].time)
-						str = strcompress(str)
-						jude_err_process,"errors.txt", str
-						filter_change = 1
-;If the filter changes, I set the gti to 1 before that element
-						data_l1a[0:ielem].gti = gti_value
-					endif else begin
-						str = "Ignoring data because filter has changed to  " + $
-						strcompress(string(nom_filter))
-						str = str +  " at time " + string(hk[index1].time)
-						str = strcompress(str)
-						jude_err_process,"errors.txt", str
-						data_l1a(ielem).gti = gti_value
-					endelse
-				endif;Check filter block
+	
+;*******************************VOLTAGE CHECK***************************
 ;Make sure the voltages are within allowed values (empirically determined)
-				if ((abs(hk(index0).cath_volt  - det_volt[0]) gt 1)   or $
-					(abs(hk(index1).cath_volt  - det_volt[0]) gt 1)   or $
-					(abs(hk(index0).anode_volt - det_volt[1]) gt 100) or $
-					(abs(hk(index1).anode_volt - det_volt[1]) gt 100) or $
-					(abs(hk(index0).mcp_volt   - det_volt[2]) gt 100) or $
-					(abs(hk(index1).mcp_volt   - det_volt[2]) gt 100)) then begin
-						if (old_time ne hk(index0).time)then begin
-							str = "Voltage out of range at time " + string(hk[index1].time)
-							str = strcompress(str)
-							jude_err_process,"errors.txt", str
-							old_time = hk(index0).time
-						endif
-					data_l1a[ielem].gti = gti_value
-				endif;Check HV block
-			endif
-		endif
-	endfor
+			if ((abs(hk(index0).cath_volt  - det_volt[0]) gt 1)   or $
+				(abs(hk(index1).cath_volt  - det_volt[0]) gt 1)   or $
+				(abs(hk(index0).anode_volt - det_volt[1]) gt 100) or $
+				(abs(hk(index1).anode_volt - det_volt[1]) gt 100) or $
+				(abs(hk(index0).mcp_volt   - det_volt[2]) gt 100) or $
+				(abs(hk(index1).mcp_volt   - det_volt[2]) gt 100)) then begin
+					if (old_time ne hk(index0).time)then begin
+						str = "Voltage out of range at time " + string(hk[index1].time)
+						str = strcompress(str)
+						jude_err_process,"errors.txt", str
+						old_time = hk(index0).time
+					endif
+				data_l1a[ielem].gti = data_l1a(ielem).gti +  gti_value
+			endif;Check HV block
+		endif;end gti value check
+	endfor;ielem line 134
 	sxaddhist, "READ_SET_GTI Version 1.0", out_hdr
 
 return,exit_success

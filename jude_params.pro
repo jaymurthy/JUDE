@@ -1,6 +1,14 @@
 ;+
+; NAME:		JUDE_PARAMS
+; PURPOSE:	Set up parameter structure
+; CALLING SEQUENCE:
+;	params = jude_params()
+; INPUTS:
+;	NONE
+; OUTPUTS:
+;	Params:		Data structure (defined below)
 ;MODIFICATION HISTORY
-;	JM:	June 26, 2016
+;	JM:	July 13, 2016
 ;COPYRIGHT
 ;Copyright 2016 Jayant Murthy
 ;
@@ -30,6 +38,7 @@ params = {JUDE_params,   $
 		ps_threshold_fuv: 3.e-4, 	$; Use 3e-4 for FUV, 
 		ps_threshold_nuv: 1.5e-3,	$; 1.5e-3 for NUV
 		flat_field: "No flat field", $; Calibration flat field
+		mask_file: "crab_mask.sav", 	$;
 		phot_dir: "events/",			$; Output directory for photon events
 		fits_dir: "images/",			$; Output directory for FITS images
 		png_dir: "png/"			$; Output directory for PNG 

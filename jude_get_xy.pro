@@ -22,9 +22,11 @@
 ;				roll_rot	: Roll angle from boresight
 ;				ang_step	: Distance between angles
 ; RESTRICTIONS
-;	No safety checks
+;	The number of counts in a frame is limited to 1000 for no particular 
+;   reason except that I had to choose some number.
 ; MODIFICATION HISTORY:
-;	JM: JUNE 22, 2016
+;	JM: Jun 22, 2016
+;	JM: Jul 13, 2016: Added comments.
 ; COPYRIGHT:
 ;Copyright 2016 Jayant Murthy
 ;
@@ -39,9 +41,10 @@
 ;   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 ;   See the License for the specific language governing permissions and
 ;   limitations under the License.
-
 ;-
 
+;Do the hard work of extracting numbers from bits. Not going to explain
+;further. I figured it out, you do too.
 function extract_coord,c1, c2, parity
 	x = (fix(c1)*2 + (fix(c2 and 128) eq 128))
 	parity = c1*0
@@ -69,10 +72,10 @@ end
 function jude_get_xy,data_l1, data_l1a, data_l2, out_hdr
 
 ;******************** Initialize Variables ******************************
-; Let me assume that I never get more than 1000 events in a frame. If I do
-; I will print an error and continue
+;  I never limit to  1000 events in a frame. If there are more
+;  I print an error and continue
 	nevents = 1000
-	ncent = 336; Maximum number of counts in one frame - specified by Level 1 format
+	ncent = 336; Maximum number of counts in one frame: Level 1 format
 	
 	nelems = n_elements(data_l1)
 	data_l2 = {uvit_l2, frameno:0l, 		$	;Frame number
@@ -88,8 +91,8 @@ function jude_get_xy,data_l1, data_l1a, data_l2, out_hdr
 						roll_dec: 0d, 		$	;From attitude file
 						roll_rot: 0d, 		$	;From attitude file
 						ang_step: 0d,		$	;Calculated step in s/c pointing
-						xoff: 0.,			$	;From calc_att_xy
-						yoff: 0.}				;From calc_att_xy
+						xoff: 0.,			$	;Offset from reference frame
+						yoff: 0.}				;Offset from reference frame
 	data_l2 = replicate(data_l2, nelems)
 	
 	icount = 0l
@@ -101,7 +104,7 @@ function jude_get_xy,data_l1, data_l1a, data_l2, out_hdr
 	fy = fltarr(ncent)
 	pe = fltarr(ncent)
 	icent = indgen(ncent)
-	;I can change the msb and lsb if the endianness is different
+;I can change the msb and lsb if the endianness is different (but it won't be)
 	msb = 0
 	lsb = 1
 	off = 0
@@ -110,94 +113,97 @@ function jude_get_xy,data_l1, data_l1a, data_l2, out_hdr
 	
 ;Run through all the data frames
 	for ielem = 0l, nelems-1 do begin
-	
-;But only if the data are good
-		if (data_l1a[ielem].gti eq 0)then begin
-		
+
+;******************** Extract X and Y from centroids ******************
 ;Convert the centroids into x and y according to defined rules.
-;Each variable is two bytes but split in odd ways. This is specified in 
-;extract_coord.
-			cent = data_l1(ielem).centroid
-			x(icent) = extract_coord(cent(icent*6 + msb), cent(icent*6 + lsb), xparity)
-			y(icent) = extract_coord(cent(icent*6 + 2 + msb), cent(icent*6 + 2 + lsb), yparity)
-			dm(icent) = (cent(icent*6 + 4 + msb) and 254)/2
-			mc(icent) = (cent(icent*6 + 4 + msb) and 1)*128 + $
-							(cent(icent*6 + 4 + lsb) and 254)/2
-			fparity = icent*0
-			for i = 0, 7 do begin
-				twop = 2^i
-				fparity = fparity + ((cent(icent*6 + 4 + msb) and 2^i) eq 2^i)
-				fparity = fparity + ((cent(icent*6 + 4 + lsb) and 2^i) eq 2^i)
-			endfor
-			fparity = fparity mod 2
+;Each variable is two bytes but split in odd ways.
+		cent = data_l1(ielem).centroid
+		x(icent) = extract_coord(cent(icent*6 + msb), cent(icent*6 + lsb), xparity)
+		y(icent) = extract_coord(cent(icent*6 + 2 + msb), cent(icent*6 + 2 + lsb), yparity)
+		dm(icent) = (cent(icent*6 + 4 + msb) and 254)/2
+		mc(icent) = (cent(icent*6 + 4 + msb) and 1)*128 + $
+						(cent(icent*6 + 4 + lsb) and 254)/2
+		fparity = icent*0
+		for i = 0, 7 do begin
+			twop = 2^i
+			fparity = fparity + ((cent(icent*6 + 4 + msb) and 2^i) eq 2^i)
+			fparity = fparity + ((cent(icent*6 + 4 + lsb) and 2^i) eq 2^i)
+		endfor
+		fparity = fparity mod 2
+		
 ;********************** Check Parity ***********************					
-			qx = where(xparity gt 0, nqx)
-			qy = where(yparity gt 0, nqy)
-			qf = where(fparity gt 0, nqf)
-			
-			if ((nqx gt 0) or (nqy gt 0) or (nqf gt 0)) then begin
-				jude_err_process,"errors.txt","parity violation"
-				data_l2[icount].gti = 1
-				break
-			endif
+		qx = where(xparity gt 0, nqx)
+		qy = where(yparity gt 0, nqy)
+		qf = where(fparity gt 0, nqf)
+		
+		if ((nqx gt 0) or (nqy gt 0) or (nqf gt 0)) then begin
+			jude_err_process,"errors.txt","parity violation"
+			data_l1a[ielem].gti = data_l1a[ielem].gti + 50
+			break
+		endif
 ;************************* End Check Parity *********************
+	
+;The time went backward in some of the early files. If it does so, I 
+;stop.
+		time1 = data_l1(ielem).time
+		time0 = data_l1(ielem-1).time
+		dtime = time1 - time0	
+		if ((dtime lt 0) and (ielem gt 0))then begin
+			jude_err_process,"errors.txt","Time goes backward at line" + string(ielem)
+			data_l2(icount).gti = 50
+			break
+		endif
 		
-;Check for frame number
-			time1 = data_l1(ielem).time
-			time0 = data_l1(ielem-1).time
-			dtime = time1 - time0	
-			if ((dtime lt 0) and (ielem gt 0))then begin
-				jude_err_process,"errors.txt","Time goes backward at line" + string(ielem)
-				data_l2(icount).gti = 1
-				break
-			endif
-		
-;Time since beginning of observation	
-			data_l2(icount).time     = data_l1(ielem).time
-			data_l2(icount).frameno  = data_l1(ielem).sechdrimageframecount + 32768
-			data_l2(icount).orig_index = ielem
-			data_l2(icount).roll_ra 	= data_l1a(ielem).roll_ra
-			data_l2(icount).roll_dec	= data_l1a(ielem).roll_dec
-			data_l2(icount).roll_rot	= data_l1a(ielem).roll_rot
+;********************* Begin filling Level 2 data ************************	
+;Duplicate part of the Level 1 data.	
+		data_l2(icount).time     = data_l1(ielem).time
+		data_l2(icount).frameno  = data_l1(ielem).sechdrimageframecount + 32768
+		data_l2(icount).orig_index = ielem
+		data_l2(icount).roll_ra 	= data_l1a(ielem).roll_ra
+		data_l2(icount).roll_dec	= data_l1a(ielem).roll_dec
+		data_l2(icount).roll_rot	= data_l1a(ielem).roll_rot
+		data_l2(icount).gti			= data_l1a(ielem).gti
 
 ;Calculate the angular motion of the spacecraft.
-			if (icount gt 0)then begin
-				x1 = cos(data_l2[icount - 1].roll_ra*180d/!dpi)*$
-					 cos(data_l2[icount - 1].roll_dec*180d/!dpi)
-				y1 = sin(data_l2[icount - 1].roll_ra*180d/!dpi)*$
-					 cos(data_l2[icount - 1].roll_dec*180d/!dpi)
-				z1 = sin(data_l2[icount - 1].roll_dec*180d/!dpi)
-				x2 = cos(data_l2[icount].roll_ra*180d/!dpi)*$
-					 cos(data_l2[icount].roll_dec*180d/!dpi)
-				y2 = sin(data_l2[icount].roll_ra*180d/!dpi)*$
-					 cos(data_l2[icount].roll_dec*180d/!dpi)
-				z2 = sin(data_l2[icount].roll_dec*180d/!dpi)
-				data_l2[icount].ang_step = acos((x1*x2 + y1*y2 + z1*z2) < 1d)*$
-										  3600d*180d/!dpi
-			endif
-				
+		if (icount gt 0)then begin
+			x1 = cos(data_l2[icount - 1].roll_ra*180d/!dpi)*$
+				 cos(data_l2[icount - 1].roll_dec*180d/!dpi)
+			y1 = sin(data_l2[icount - 1].roll_ra*180d/!dpi)*$
+				 cos(data_l2[icount - 1].roll_dec*180d/!dpi)
+			z1 = sin(data_l2[icount - 1].roll_dec*180d/!dpi)
+			x2 = cos(data_l2[icount].roll_ra*180d/!dpi)*$
+				 cos(data_l2[icount].roll_dec*180d/!dpi)
+			y2 = sin(data_l2[icount].roll_ra*180d/!dpi)*$
+				 cos(data_l2[icount].roll_dec*180d/!dpi)
+			z2 = sin(data_l2[icount].roll_dec*180d/!dpi)
+			data_l2[icount].ang_step = acos((x1*x2 + y1*y2 + z1*z2) < 1d)*$
+									  3600d*180d/!dpi
+		endif
+			
 ;Extract the non-zero components. These should all be at the beginning of the
 ;frame but it costs little to do it this way
-			q = where(x gt 0, nq)
-			
-;The maximum number of counts in a frame is 336. It is normally much less.
-;I have set a maximum of 1000 counts in a frame based on the array size. 
-;The photon centroiding  algorithm will break down with too many counts anyway.
-			if (nq eq 336)then off = ncent + off else off = 0
-			data_l2(icount).nevents = nq + data_l2(icount).nevents
-			if ((nq gt 0) and ((max(q)+off) lt nevents))then begin
-				for i=0,nq - 1 do begin
-					data_l2(icount).x(q(i)+off)  = x(q(i))
-					data_l2(icount).y(q(i)+off)  = y(q(i))
-					data_l2(icount).dm(q(i)+off) = dm(q(i))
-					data_l2(icount).mc(q(i)+off) = mc(q(i))
-				endfor
-			endif else if ((max(q) + off) gt nevents)then begin
-				excess_count = excess_count + 1
-				data_l2(icount).gti = 3
-			endif
-			if (nq lt 336)then icount = icount + 1
-		endif ;End check for gti
+		q = where(x gt 0, nq)
+
+;The maximum number of counts in a row is 336 in the Level 1 data. There
+;may be more in a frame in which case, the counts are spread over several rows.
+;There are normally many fewer than 100 counts per frame but the on-board
+;photon counting algorithm breaks down with too many counts. I limit the 
+;total number of counts in one frame to 1000, although this can easily
+;be changed.
+		if (nq eq 336)then off = ncent + off else off = 0
+		data_l2(icount).nevents = nq + data_l2(icount).nevents
+		if ((nq gt 0) and ((max(q)+off) lt nevents))then begin
+			for i=0,nq - 1 do begin
+				data_l2(icount).x(q(i)+off)  = x(q(i))
+				data_l2(icount).y(q(i)+off)  = y(q(i))
+				data_l2(icount).dm(q(i)+off) = dm(q(i))
+				data_l2(icount).mc(q(i)+off) = mc(q(i))
+			endfor
+		endif else if ((max(q) + off) gt nevents)then begin
+			excess_count = excess_count + 1
+			data_l2(icount).gti = data_l2(icount).gti + 14
+		endif
+		if (nq lt 336)then icount = icount + 1
 	endfor
 	
 ;There are fewer frames in the the Level 2 file because there may be more

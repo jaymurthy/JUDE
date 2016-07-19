@@ -1,11 +1,15 @@
 function jude_check_bod, data_l1, data_l1a
 
 ; Every observation has to start with a bright object detection
-; I check for the BOD and reject the observation if there is no BOD
+; The frame count increases monotonically at the beginning and
+; then does odd things until the end of the BOD.
+; If I do not find this pattern, I return 0, otherwise 1.
 
+;Note that there is an offset of 32768 in the frame count to keep it integer.
 	frame = data_l1.sechdrimageframecount + 32768
 	exit_success = 1
 	exit_failure = 0
+	gti_value	 = 1; BOD value - anything odd implies BOD.
 	nelems = n_elements(frame)
 	i = 1l
 	while (((frame[i] - frame[i-1]) ge 0) and (i lt (nelems - 2))) do $
@@ -16,7 +20,7 @@ function jude_check_bod, data_l1, data_l1a
 	if (i ge (nelems-10))then begin
 		return,exit_failure
 	endif
-	data_l1a(0:i).gti = 1
+	data_l1a(0:i).gti = gti_value
 	return,exit_success
 	
 end

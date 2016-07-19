@@ -13,7 +13,10 @@
 ;	FUV, NUV, VIS:	Selects appropriate imager. Note that VIS is not
 ;					yet supported.
 ; RESTRICTIONS
-; 	All files have to be gzipped
+; 	Returns files of the form *uvtF*.fits* or *uvtN*.fits*. No checks are done
+;	on the format of the files.
+; MODIFICATIONS:
+;	July 13, 2016: JM
 ;COPYRIGHT
 ;Copyright 2016 Jayant Murthy
 ;
@@ -46,12 +49,12 @@ function jude_get_files,data_dir, file, fuv = fuv, nuv = nuv, vis = vis
 
 ;Note that I only search for gzipped files.   
     if (keyword_set(fuv))then begin
-        file=file_search(data_dir,"*uvtF*.fits.gz",count=nfiles)
+        file=file_search(data_dir,"*uvtF*.fits*",count=nfiles)
         print,"Total of ", nfiles," FUV files"
     endif
     
     if (keyword_set(nuv))then begin
-        file=file_search(data_dir,"*uvtN*.fits.gz",count=nfiles)
+        file=file_search(data_dir,"*uvtN*.fits*",count=nfiles)
         print,"Total of ", nfiles," NUV files"
     endif
     

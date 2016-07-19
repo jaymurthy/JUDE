@@ -1,27 +1,40 @@
-function jude_register_data, data, data_hdr,  xoff, yoff, start_frame = start_frame, $
-				   end_frame = end_frame, bin = bin, $
-				   min_counts = min_counts, max_counts = max_counts,$
-				   max_off = max_off, stellar = stellar,$
-				   mask = mask,resolution = resolution,$
-				   xstage1 = xstage1, ystage1 = ystage1, threshold = threshold
-				   
 ;+
 ;  NAME:
 ;		JUDE_REGISTER_DATA
 ;  PURPOSE:
-;		Calculate x and y shifts based on boresight ra and dec
+;		Optimize shifts between frames
 ;	CALLING SEQUENCE
-;		jude_cnvt_att_xy, data, hdr, xoff, yoff, resolution = resolution, bin = bin, $
-;				   min_counts = min_counts, max_counts = max_counts
+;		success = jude_register_data(data, data_hdr, params, 		$
+;							 stellar = stellar, bin = bin,			$
+;							 mask = mask, threshold = threshold,	$
+;							 xstage1 = xstage1, ystage1 = ystage1)
 ; INPUTS:
-;		data		: Level 2 output from set_gti
-;		hdr			;
-;	OUTPUTS:
-;	NOTES: 			Aggressively removes data  where the s/c moves by more than 
-;					a default amount.
+;		Data		: Level 2 data. Must contain:
+;							NEVENTS - total number of events
+;							X - x position of photon events
+;							Y - y position of photon events
+;							XOFF - x offsets (these will be overwritten)
+;							YOFF - y offsets (also overwritten)
+;		Data_hdr	: Header which will be updated by program id
+; OPTIONAL INPUTS
+;		Params		: Initial parameters. Must contain
+;							MIN_FRAME 
+;							MAX_FRAME 
+;							MIN_COUNTS
+;							MAX_COUNTS)
+;							RESOLUTION
+;					If not defined, created from JUDE_PARAMS
+; OPTIONAL KEYWORDS
+;		Xstage1		: First guess at offsets (default 0)
+;		Ystage1		: First guess at offsets (default 0)
+;		Threshold	: Points below this value are not considered (default 0)
 ;	
+;	OUTPUTS:
+;		Data		: data.xoff and data.yoff are updated with offsets
+;	NOTES: 			
 ;	MODIFICATION HISTORY
 ;		JM: June 22, 2016
+;		JM: July 15, 2016: Some code cleanup; some comments cleanup
 ; COPYRIGHT: 
 ;Copyright 2016 Jayant Murthy
 ;
@@ -38,52 +51,69 @@ function jude_register_data, data, data_hdr,  xoff, yoff, start_frame = start_fr
 ;   limitations under the License.
 ;-
 
+function jude_register_data, data, data_hdr, params, $
+							 stellar = stellar, bin = bin, $
+							 mask = mask,$
+							 xstage1 = xstage1, ystage1 = ystage1, $
+							 threshold = threshold
 
+;Usual exit parameters
 	exit_success = 1
 	exit_failure = 0
 	
+;*********************************BEGIN INITIALIZATION************************
 	nelems = n_elements(data)
-	if (n_elements(min_counts) eq 0)	then min_counts = 0l
-	if (n_elements(max_counts) eq 0)	then max_counts = max(data.nevents)
-	if (max_counts eq 0)				then max_counts = max(data.nevents)
-	if (n_elements(bin) eq 0) 			then bin = 100
-	if (n_elements(max_off) eq 0)		then max_off = 100
-	if (n_elements(mask) eq 0)			then mask = 1
-	if (n_elements(start_frame) eq 0)	then start_frame = 0l
-	if (n_elements(end_frame) eq 0) 	then end_frame = nelems - 1
-	if (end_frame eq 0)					then end_frame = nelems - 1
-	if (n_elements(resolution) eq 0) 	then resolution = 1
-	if (n_elements(xstage1) eq 0)		then xstage1 = fltarr(nelems)
-	if (n_elements(ystage1) eq 0)		then ystage1 = fltarr(nelems)
-	
-;Initialization
-	par = {par, min_counts: 0l, max_counts: 0l, min_frame:0l, max_frame:0l, $
-			resolution:1}
-	par.min_counts	= min_counts
-	par.max_counts	= max_counts
-	par.min_frame 	= start_frame
-	par.max_frame 	= start_frame + bin
-	par.resolution  = resolution
-	start_ielem 	= start_frame/bin
-	max_ielem 		= end_frame/bin
-	max_time_skip   = 1
-	
-	if (max_ielem le start_ielem)then begin
+;Set default parameters  if params is not included.
+	if (n_elements(params) eq 0) then params = jude_params()
+	min_counts 	= params.min_counts
+	max_counts 	= params.max_counts
+	start_frame = params.min_frame
+	tst = min(where(data.gti eq 0, nq))
+	if (nq eq 0)then begin
 		print,"Not enough points for registration"
 		xoff = 0
 		yoff = 0
 		return,exit_failure
 	endif
+	start_frame = min(tst, start_frame)
+
+	end_frame	= params.max_frame
+	resolution	= params.resolution
+	if (end_frame eq 0) then end_frame = nelems - 1
+	if (n_elements(max_off) eq 0)		then max_off = 100
+	if (n_elements(mask) eq 0)			then mask = 1
+	if (n_elements(xstage1) eq 0)		then xstage1 = fltarr(nelems)
+	if (n_elements(ystage1) eq 0)		then ystage1 = fltarr(nelems)
+	if (n_elements(bin) eq 0)			then bin	 = params.coarse_bin
+	if (n_elements(threshold) eq 0)		then threshold = 0
+	if (max_counts eq 0) then max_counts = max(data.nevents)
 	
-;Begin processing	
-	
+;I don't want to modify the input parameter set because that is global
+	par				 = params
+	par.min_frame 	= start_frame
+	par.max_frame 	= start_frame + bin
+	start_ielem 	= start_frame/bin
+	max_ielem 		= end_frame/bin
+	max_time_skip   = 1 ;I cannot register if there are large steps in the data.
+
 ;Offsets	
 	x1 		  = fltarr(max_ielem) - 9999
 	y1 		  = fltarr(max_ielem) - 9999
 	xindex	  = findgen(max_ielem)*bin
 	xopt = 9999
 	yopt = 9999
-		
+
+	if (max_ielem le start_ielem)then begin
+		print,"Not enough points for registration"
+		xoff = 0
+		yoff = 0
+		return,exit_failure
+	endif
+	if (keyword_set(stellar))then stellar = 1 else stellar = 0
+
+;****************************** END INITIALIZATION **************************
+	
+;Find the first frame with valid data.		
 ;First frame is at the beginning and I use that as the reference
 	nframes = jude_add_frames(data, g1, gtime, par, xstage1, ystage1, /notime)
 
@@ -101,54 +131,89 @@ function jude_register_data, data, data_hdr,  xoff, yoff, start_frame = start_fr
 			return,exit_failure
 		endif
 	endwhile
-	
-;Select threshold
-	thg1 = threshold
-	find,g1,xf1,yf1,ff1,s1,r1,thg1,resolution,[-2.,2.],[.2,2.],/silent
-	while (n_elements(xf1) gt 50) do begin
-		thg1 = thg1 + threshold
-		xf1=0
-		find,g1,xf1,yf1,ff1,s1,r1,thg1,resolution,[-2.,2.],[.2,2.],/silent
-	endwhile
 
+;I have two different ways of finding point sources. One is by searching
+;for point sources and finding the shifts between sources. The second is 
+;by defining a mask within which I do a 2-point correlation. This is much
+;slower than the first and is not likely to be any better for point sources.
+;On the other hand the point source matching is not likely to work well for
+;large diffuse sources.
+;NOTE: I always work with the shifted data so (ideally) the additional
+;	   shifts should be 0.
+
+	thg1 = threshold ;Baseline threshold
+
+;There are some cases where I find too many sources or too few sources
+;But only test if I'm working on point sources
+	if (stellar eq 1)then begin
+		find,g1,xf1,yf1,ff1,s1,r1,thg1,resolution,[-2.,2.],[.2,2.],/silent
+		while (n_elements(xf1) gt 50) do begin
+			thg1 = thg1 + threshold
+			xf1=0
+			find,g1,xf1,yf1,ff1,s1,r1,thg1,resolution,[-2.,2.],[.2,2.],/silent
+		endwhile
+
+;Too few sources
 		if (n_elements(xf1) le 2)then begin
 			xoff = xstage1
 			yoff = ystage1
 			jude_err_process,"errors.txt","Not enough points for registration"
 			return,exit_failure
 		endif
-	
-;Now start find offsets through two methods - by finding stars and their
-;shifts or by a 2-d correlation
+;Too many sources		
+		if (n_elements(xf1) le 2)then begin
+			xoff = xstage1
+			yoff = ystage1
+			str = "Too many sources found for registration, consider changing the threshold"
+			jude_err_process,"errors.txt",str
+			return,exit_failure
+		endif
+
+	endif
+
+;******************************** BEGIN REGISTRATION ************************
+;Because of S/N issues we have to add frames. Therefore we step through the 
+;frames but work with (bin) bins at a time.
 	for ielem=start_ielem,max_ielem - 2 do begin
+
+;Index into the original data
 		index1 = ielem*bin
 		index2 = ((ielem + 1)*bin - 1) < (nelems - 1)
 
+;Add over (bin) frames
 		par.min_frame = par.max_frame
 		par.max_frame = (par.min_frame + bin) < (n_elements(data) - 1)
-		nframes = jude_add_frames(data, g2, gtime, par, xstage1, ystage1, /notime)
-;Check to make sure there are not big time skips
+
+;Check to make sure there are no big time skips in the data
+;If there are, then I cannot register because the stars will be smeared
 		temp = data[index1:index2]
 		q = where(temp.gti eq 0, nq)
-		if (nq gt 0) then begin
+		if (nq gt bin/2) then begin ;Only bother checking if we have enough data
 			temp = temp(q)
 			tst = max(abs(temp[1:nq - 1].time - temp[0:nq - 2].time))
-			if (tst gt max_time_skip)then nframes = 0
+			if (tst gt max_time_skip)then nframes = 0 else $
+				nframes = jude_add_frames(data, g2, gtime, par, xstage1, ystage1, /notime)
 		endif else nframes = 0
-		if (nframes gt bin/2)then begin  ;only if there is good data
+		
+;I only continue the registration if there is good data
+		if (nframes gt bin/2)then begin
 
-;Find stars in the field
-			if (keyword_set(stellar))then begin					
+;*************************** MATCH POINT SOURCES ***********************		
+			if (stellar eq 1)then begin	
+			
+;I have already found the sources in the first reference frame so as I go
+;along, I find the shifts in successive sets of frames.
+;Use the find routine to find point sources (more or less based on DAOPHOT)
 				find,g2,xf2,yf2,ff2,s1,r1,thg1,resolution,[-2.,2.],[.2,2.],/silent
 
-;As long as I find some stars, try to match between frames. The base shift is 
-;given by the stage_1 offsets.
-				
+;If I find more than one source, I can try to match the sources. Because I have
+;shifted the frames into a common frame of reference, there should be little
+;additional shift. I'm allowing 5 pixels (16") which may be too much.
+;SRCOR matches the point sources. I have to use catch because of the 
+;way SRCOR does their error checking. I take the deviation to be the
+;average deviation between the stars.
 				if ((n_elements(xf1) ge 1) and (n_elements(xf2) ge 1))then begin
-					d = 20
-
-;Now put into the common frame of reference
-
+					d = 5*resolution ;Check optimal shifts
 					srcor,xf1, yf1, xf2, yf2, d, if1,if2,mag=-ff1,/silent
 					catch, error_status						
 					if ((n_elements(if1) ge 3) and (error_status eq 0))then begin
@@ -163,26 +228,28 @@ function jude_register_data, data, data_hdr,  xoff, yoff, start_frame = start_fr
 					xopt = 1000
 					yopt = 1000
 				endelse
-			endif else begin ;Line 88 stellar
-;Match using correlations between frames
+			endif else begin ;Line 171 stellar
+;******************************MATCH DIFFUSE SOURCES********************
+;I use a mask so that I only center on the part I want
+;This part is really slow.
 				t1 = g1*mask*(g1 gt thg1)
 				t2 = g2*mask*(g2 gt thg1)
 				c = correl_images(t1,t2,xoffset=0, yoffset=0)
 				corrmat_analyze,c,xopt,yopt,xoff=0, yoff=0
-			endelse;Line 118
+			endelse;Line 200
 			x1(ielem) =   xopt
 			y1(ielem) =   yopt
 			print,par.min_frame,par.max_frame,xopt,yopt,string(13b),$
 					format="(i7, 2x, i7, f8.2, 2x, f8.2,a,$)"
-		endif else begin ;if there is no good data - line 85
+		endif else begin ;if there is no good data - line 168
 			x1(ielem) = 1000
 			y1(ielem) = 1000
 		endelse
 		
-	endfor ;ielem loop
-;End loop through all frames
+	endfor ;ielem loop (line 146)
+;*******************************END MATCHES*************************
 
-	;Interpolate coefficients
+;Interpolate coefficients into array
 	q=where((abs(x1) lt max_off) and (abs(y1) lt max_off),nq)
 	if (nq gt 5)then begin
 		quadterp,xindex(q),x1(q),findgen(nelems),xoff
@@ -193,11 +260,13 @@ function jude_register_data, data, data_hdr,  xoff, yoff, start_frame = start_fr
 		jude_err_process,"errors.txt","No registration done"
 		return,exit_failure
 	endelse
+
+;Relative offsets so put it back into absolutes
 	xoff = xstage1 + xoff
 	yoff = ystage1 + yoff
 	data.xoff = xoff
 	data.yoff = yoff
-	if (keyword_set(stellar))then $
+	if (stellar eq 1)then $
 		sxaddhist, "REGISTER_DATA (star match) Version 1.0", data_hdr $
 	else sxaddhist, "REGISTER_DATA (correlate) Version 1.0", data_hdr
 
