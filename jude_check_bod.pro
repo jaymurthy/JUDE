@@ -4,9 +4,11 @@ function jude_check_bod, data_l1, data_l1a
 ; The frame count increases monotonically at the beginning and
 ; then does odd things until the end of the BOD.
 ; If I do not find this pattern, I return 0, otherwise 1.
+;Modifications:
+; July 22, 2016: JM Modified frame count.
 
 ;Note that there is an offset of 32768 in the frame count to keep it integer.
-	frame = data_l1.sechdrimageframecount + 32768
+	frame = data_l1a.frameno
 	exit_success = 1
 	exit_failure = 0
 	gti_value	 = 1; BOD value - anything odd implies BOD.

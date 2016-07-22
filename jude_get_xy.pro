@@ -27,6 +27,7 @@
 ; MODIFICATION HISTORY:
 ;	JM: Jun 22, 2016
 ;	JM: Jul 13, 2016: Added comments.
+;	JM: Jul 22, 2016: Corrected frame number.
 ; COPYRIGHT:
 ;Copyright 2016 Jayant Murthy
 ;
@@ -157,7 +158,7 @@ function jude_get_xy,data_l1, data_l1a, data_l2, out_hdr
 ;********************* Begin filling Level 2 data ************************	
 ;Duplicate part of the Level 1 data.	
 		data_l2(icount).time     = data_l1(ielem).time
-		data_l2(icount).frameno  = data_l1(ielem).sechdrimageframecount + 32768
+		data_l2(icount).frameno  = data_l1a(ielem).frameno
 		data_l2(icount).orig_index = ielem
 		data_l2(icount).roll_ra 	= data_l1a(ielem).roll_ra
 		data_l2(icount).roll_dec	= data_l1a(ielem).roll_dec

@@ -23,6 +23,7 @@
 ;	JM: June 1,  2016
 ;	JM: July 15, 2016: Cleanup
 ;	JM: July 16, 2016: Fixed bug introduced during cleanup
+;	JML July 22, 2016: Corrected frame numbering.
 ; COPYRIGHT:
 ;Copyright 2016 Jayant Murthy
 ;
@@ -129,7 +130,7 @@ function jude_set_gti, data_hdr, data_l1, data_l1a, hk, att, out_hdr
 		endif
 	endfor
 	old_time = 0
-	frame = data_l1.sechdrimageframecount + 32768 ;Apply offset
+	frame = data_l1a.frameno
 
 ;********************************BEGIN PROCESSING*************************
 	for ielem = 0l, nelems - 1 do begin
@@ -137,7 +138,7 @@ function jude_set_gti, data_hdr, data_l1, data_l1a, hk, att, out_hdr
 ;We only have check if the data are good
 		
 ;If the frame count goes backwards I mark the data bad.
-			if (frame[ielem] lt frame[ielem - 1])then begin
+			if ((frame[ielem] lt frame[ielem - 1]) and (ielem gt 0))then begin
 				data_l1a[ielem:nelems-1].gti = data_l1a[ielem:nelems-1].gti +$
 											   gti_value
 				str = "Frame goes backward at frame " + string(ielem)

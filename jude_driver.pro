@@ -23,7 +23,9 @@
 ;   Diffuse			:The default is to improve on the spacecraft pointing by
 ;						using stars. If I have a diffuse sources, I may do 
 ;						better by matching that.
-;	Debug		
+;	Debug			: Stops before exiting the program to allow variables to be
+;						checked.
+;	Ignore_bod		: Allows the BOD detection to be skipped.
 ; OUTPUT FILES:
 ;	Level 2 data file: FITS binary table with the following format:
 ;					FRAMENO         LONG      0
@@ -54,6 +56,8 @@
 ;	JM: July 13, 2016 : Fixed an error in selecting files.
 ;						Either compressed or uncompressed files are ok.
 ;   JM: July 14, 2016 : More consistency corrections
+;	JM:	July 22, 2016 : Added keyword to skip BOD if needed.
+;	JM: July 22, 2016 : Corrected frame numbering when overflow.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -73,7 +77,8 @@
 pro jude_driver, data_dir,$
 	fuv = fuv, nuv = nuv, vis = vis, $
 	start_file = start_file, end_file = end_file,$
-	stage2 = stage2, debug = debug, diffuse = diffuse
+	stage2 = stage2, debug = debug, diffuse = diffuse,$
+	ignore_bod = ignore_bod
 
 ;Define bookkeeping variables
 	exit_success = 1
@@ -136,18 +141,28 @@ pro jude_driver, data_dir,$
 				goto,no_process
 			endif
 ;Set up the Level 1A data
-		data_l1a = {uvit_l1a, time: 0d, gti: 0, roll_ra: 0d, roll_dec: 0d, roll_rot: 0d}
+		data_l1a = {uvit_l1a, frameno:0l, time: 0d, gti: 0, $
+					roll_ra: 0d, roll_dec: 0d, roll_rot: 0d}
 		data_l1a = replicate(data_l1a, nelems)
 		data_l1a.time    = data_l1.time
-	
+;The frame numbers are integer and should really be long I have to correct for
+;this
+		flag = 1
+		for i=0l,nelems-1 do begin
+			data_l1a[i].frameno = data_l1[i].sechdrimageframecount + 32768l*flag
+			if (data_l1[i].sechdrimageframecount eq 32767)then flag = flag+1
+		endfor
+			
 ;There is supposed to be a bright object detection in each observation.
-;Those observations which don't have one may indicated incomplete Level 1 files.
+;Those observations which don't have one may indicate incomplete Level 1 files.
+;Because of concerns about whether this is a valid check or not, I have added
+;the option to use the file even if the BOD is present.
 		check = jude_check_bod(data_l1,data_l1a)
 		if (check eq exit_failure)then begin
 			jude_err_process,"errors.txt","No BOD in file"
 			print,"No BOD in file"
 			openw,rm_lun,"rm.sh",/get,/append & printf,rm_lun,"rm "+file(ifile) & free_lun,rm_lun
-			goto,no_process
+			if not(keyword_set(ignore_bod))then goto,no_process
 		endif
 
 ;*******************************OUTPUTS****************************
