@@ -36,6 +36,7 @@
 ;		JM: June 22, 2016
 ;		JM: July 15, 2016: Some code cleanup; some comments cleanup
 ;		JM:	July 20, 2016: Fixed error in end_frame
+;		JM: July 22, 2016: Syntax error fixed.
 ; COPYRIGHT: 
 ;Copyright 2016 Jayant Murthy
 ;
@@ -78,7 +79,7 @@ function jude_register_data, data, data_hdr, params, $
 	endif
 	start_frame = min(tst, start_frame)
 
-	end_frame	= min(params.max_frame, nelems - 1)
+	end_frame	= min([params.max_frame, nelems - 1])
 	resolution	= params.resolution
 	if (end_frame eq 0) then end_frame = nelems - 1
 	if (n_elements(max_off) eq 0)		then max_off = 100
