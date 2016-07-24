@@ -37,6 +37,7 @@
 ;		JM: July 15, 2016: Some code cleanup; some comments cleanup
 ;		JM:	July 20, 2016: Fixed error in end_frame
 ;		JM: July 22, 2016: Syntax error fixed.
+;		JM: July 24, 2016: Only require two matched point sources.
 ; COPYRIGHT: 
 ;Copyright 2016 Jayant Murthy
 ;
@@ -218,7 +219,7 @@ function jude_register_data, data, data_hdr, params, $
 					d = 5*resolution ;Check optimal shifts
 					srcor,xf1, yf1, xf2, yf2, d, if1,if2,mag=-ff1,/silent
 					catch, error_status						
-					if ((n_elements(if1) ge 3) and (error_status eq 0))then begin
+					if ((n_elements(if1) ge 2) and (error_status eq 0))then begin
 						xopt = mean(xf1(if1) - xf2(if2))
 						yopt = mean(yf1(if1) - yf2(if2))
 					endif else begin

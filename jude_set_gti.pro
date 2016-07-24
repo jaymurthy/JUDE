@@ -23,7 +23,8 @@
 ;	JM: June 1,  2016
 ;	JM: July 15, 2016: Cleanup
 ;	JM: July 16, 2016: Fixed bug introduced during cleanup
-;	JML July 22, 2016: Corrected frame numbering.
+;	JM: July 22, 2016: Corrected frame numbering.
+;	JM: July 24, 2016: Ignore repeated frames (instead of breaking out)
 ; COPYRIGHT:
 ;Copyright 2016 Jayant Murthy
 ;
@@ -133,18 +134,19 @@ function jude_set_gti, data_hdr, data_l1, data_l1a, hk, att, out_hdr
 	frame = data_l1a.frameno
 
 ;********************************BEGIN PROCESSING*************************
+	old_frame = 0
 	for ielem = 0l, nelems - 1 do begin
 		if (data_l1a[ielem].gti eq 0)then begin
-;We only have check if the data are good
+;We only have to check if the data are good
 		
 ;If the frame count goes backwards I mark the data bad.
-			if ((frame[ielem] lt frame[ielem - 1]) and (ielem gt 0))then begin
+			if (frame[ielem] lt old_frame)then begin
 				data_l1a[ielem:nelems-1].gti = data_l1a[ielem:nelems-1].gti +$
 											   gti_value
 				str = "Frame goes backward at frame " + string(ielem)
 				str = strcompress(str)
 				jude_err_process,"errors.txt", str
-			endif
+			endif else old_frame = frame[ielem]
 	
 ;Match the housekeeping to the image data by time
 			index0 = max(where(hk.time le data_l1a[ielem].time, nq0))

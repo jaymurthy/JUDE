@@ -28,6 +28,7 @@
 ;	JM: Jun 22, 2016
 ;	JM: Jul 13, 2016: Added comments.
 ;	JM: Jul 22, 2016: Corrected frame number.
+;	JM: Jul 24, 2106: Skip over repeated times instead of exiting program
 ; COPYRIGHT:
 ;Copyright 2016 Jayant Murthy
 ;
@@ -113,6 +114,7 @@ function jude_get_xy,data_l1, data_l1a, data_l2, out_hdr
 ;******************** End Initialization ****************************
 	
 ;Run through all the data frames
+	time0 = 0d
 	for ielem = 0l, nelems-1 do begin
 
 ;******************** Extract X and Y from centroids ******************
@@ -144,16 +146,13 @@ function jude_get_xy,data_l1, data_l1a, data_l2, out_hdr
 		endif
 ;************************* End Check Parity *********************
 	
-;The time went backward in some of the early files. If it does so, I 
-;stop.
+;The time occasionally goes backward. I'll skip past those frames
 		time1 = data_l1(ielem).time
-		time0 = data_l1(ielem-1).time
 		dtime = time1 - time0	
 		if ((dtime lt 0) and (ielem gt 0))then begin
 			jude_err_process,"errors.txt","Time goes backward at line" + string(ielem)
-			data_l2(icount).gti = 50
-			break
-		endif
+			data_l1a[ielem].gti = data_l1a[ielem].gti + 50
+		endif else time0 = data_l1[ielem].time
 		
 ;********************* Begin filling Level 2 data ************************	
 ;Duplicate part of the Level 1 data.	
@@ -190,20 +189,27 @@ function jude_get_xy,data_l1, data_l1a, data_l2, out_hdr
 ;There are normally many fewer than 100 counts per frame but the on-board
 ;photon counting algorithm breaks down with too many counts. I limit the 
 ;total number of counts in one frame to 1000, although this can easily
-;be changed.
+;be changed. If the time is repeated or goes backwards, I skip those frames
 		if (nq eq 336)then off = ncent + off else off = 0
-		data_l2(icount).nevents = nq + data_l2(icount).nevents
-		if ((nq gt 0) and ((max(q)+off) lt nevents))then begin
-			for i=0,nq - 1 do begin
-				data_l2(icount).x(q(i)+off)  = x(q(i))
-				data_l2(icount).y(q(i)+off)  = y(q(i))
-				data_l2(icount).dm(q(i)+off) = dm(q(i))
-				data_l2(icount).mc(q(i)+off) = mc(q(i))
-			endfor
-		endif else if ((max(q) + off) gt nevents)then begin
-			excess_count = excess_count + 1
-			data_l2(icount).gti = data_l2(icount).gti + 14
-		endif
+		if ((dtime eq 0) and (off eq 0)) then begin
+			jude_err_process,"errors.txt","Repeated frame at frame " + $
+				strcompress(string(ielem))
+			data_l2[icount].gti = data_l2[icount].gti + 50
+			data_l1a[ielem].gti = data_l1a[ielem].gti + 50
+		endif else begin
+			data_l2(icount).nevents = nq + data_l2(icount).nevents
+			if ((nq gt 0) and ((max(q)+off) lt nevents))then begin
+				for i=0,nq - 1 do begin
+					data_l2(icount).x(q(i)+off)  = x(q(i))
+					data_l2(icount).y(q(i)+off)  = y(q(i))
+					data_l2(icount).dm(q(i)+off) = dm(q(i))
+					data_l2(icount).mc(q(i)+off) = mc(q(i))
+				endfor
+			endif else if ((max(q) + off) gt nevents)then begin
+				excess_count = excess_count + 1
+				data_l2(icount).gti = data_l2(icount).gti + 14
+			endif
+		endelse
 		if (nq lt 336)then icount = icount + 1
 	endfor
 	
