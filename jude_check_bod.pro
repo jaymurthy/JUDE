@@ -6,12 +6,13 @@ function jude_check_bod, data_l1, data_l1a
 ; If I do not find this pattern, I return 0, otherwise 1.
 ;Modifications:
 ; July 22, 2016: JM Modified frame count.
+; July 31, 2016: JM Changed GTI to DQI
 
 ;Note that there is an offset of 32768 in the frame count to keep it integer.
 	frame = data_l1a.frameno
 	exit_success = 1
 	exit_failure = 0
-	gti_value	 = 1; BOD value - anything odd implies BOD.
+	dqi_value	 = 1; BOD value - anything odd implies BOD.
 	nelems = n_elements(frame)
 	i = 1l
 	while (((frame[i] - frame[i-1]) ge 0) and (i lt (nelems - 2))) do $
@@ -22,7 +23,7 @@ function jude_check_bod, data_l1, data_l1a
 	if (i ge (nelems-10))then begin
 		return,exit_failure
 	endif
-	data_l1a(0:i).gti = gti_value
+	data_l1a(0:i).dqi = dqi_value
 	return,exit_success
 	
 end

@@ -38,6 +38,7 @@
 ;		JM:	July 20, 2016: Fixed error in end_frame
 ;		JM: July 22, 2016: Syntax error fixed.
 ;		JM: July 24, 2016: Only require two matched point sources.
+; 		JML July 31, 2016: Changed GTI to DQI
 ; COPYRIGHT: 
 ;Copyright 2016 Jayant Murthy
 ;
@@ -71,7 +72,7 @@ function jude_register_data, data, data_hdr, params, $
 	min_counts 	= params.min_counts
 	max_counts 	= params.max_counts
 	start_frame = params.min_frame
-	tst = min(where(data.gti eq 0, nq))
+	tst = min(where(data.dqi eq 0, nq))
 	if (nq eq 0)then begin
 		print,"Not enough points for registration"
 		xoff = 0
@@ -118,13 +119,13 @@ function jude_register_data, data, data_hdr, params, $
 	
 ;Find the first frame with valid data.		
 ;First frame is at the beginning and I use that as the reference
-	nframes = jude_add_frames(data, g1, gtime, par, xstage1, ystage1, /notime)
+	nframes = jude_add_frames(data, g1, pixel_time, par, xstage1, ystage1, /notime)
 
 ;If there is no data in this frame, I step up until I get data
 	while ((max(g1) eq 0) or (nframes lt bin/2))do begin
 		par.min_frame = par.max_frame
 		par.max_frame = par.min_frame + bin
-		nframes = jude_add_frames(data, g1, gtime, par, xstage1, ystage1, /notime)
+		nframes = jude_add_frames(data, g1, pixel_time, par, xstage1, ystage1, /notime)
 		start_frame = par.min_frame
 		start_ielem = start_ielem + 1
 		if (par.max_frame ge nelems)then begin
@@ -190,12 +191,12 @@ function jude_register_data, data, data_hdr, params, $
 ;Check to make sure there are no big time skips in the data
 ;If there are, then I cannot register because the stars will be smeared
 		temp = data[index1:index2]
-		q = where(temp.gti eq 0, nq)
+		q = where(temp.dqi eq 0, nq)
 		if (nq gt bin/2) then begin ;Only bother checking if we have enough data
 			temp = temp(q)
 			tst = max(abs(temp[1:nq - 1].time - temp[0:nq - 2].time))
 			if (tst gt max_time_skip)then nframes = 0 else $
-				nframes = jude_add_frames(data, g2, gtime, par, xstage1, ystage1, /notime)
+				nframes = jude_add_frames(data, g2, pixel_time, par, xstage1, ystage1, /notime)
 		endif else nframes = 0
 		
 ;I only continue the registration if there is good data

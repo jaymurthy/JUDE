@@ -27,6 +27,7 @@ function jude_cnvt_att_xy, data, hdr, xoff, yoff, params = params
 ;		JM: June 22, 2016
 ;		JM: July 13, 2016: Adding comments.
 ;		JM: July 13, 2016: Code simplification
+; 		JM: July 31, 2016: Changed GTI to DQI
 ; COPYRIGHT:
 ;Copyright 2016 Jayant Murthy
 ;
@@ -60,7 +61,7 @@ START_PROGRAM:
 		resolution = params.resolution
 	endelse
 	bin = 100
-	gti_value = 10; Flag for problems in attitude
+	dqi_value = 10; Flag for problems in attitude
 	start_frame = 0
 
 	out_hdr = hdr
@@ -78,7 +79,7 @@ START_PROGRAM:
 	
 ;Keep track of bad data
 	old_bad = lonarr(n_elems)
-	q = where(data.gti gt 0, nq)
+	q = where(data.dqi gt 0, nq)
 	if (nq gt 0)then old_bad(q) = 1
 	
 ;First frame is at the beginning and I use that as the reference
@@ -87,7 +88,7 @@ START_PROGRAM:
 				resolution:resolution}
 				
 ;Skip over bad data at the beginning.				
-	while ((data[par.min_frame].gti ne 0) and (par.min_frame lt (n_elems - bin - 1))) do $
+	while ((data[par.min_frame].dqi ne 0) and (par.min_frame lt (n_elems - bin - 1))) do $
 		par.min_frame = par.min_frame + 1
 	par.max_frame = par.min_frame + bin
 	
@@ -103,11 +104,11 @@ START_PROGRAM:
 			(par.min_frame lt (n_elems - 2*bin)))do begin
 		par.min_frame = par.max_frame
 		par.max_frame = par.min_frame + bin
-		nframes = jude_add_frames(data, g1, gtime, par, /notime)
+		nframes = jude_add_frames(data, g1, pixel_time, par, /notime)
 ;Check to see that there are no major breaks in the time
 		start_frame = par.min_frame
 		temp = data[par.min_frame:par.max_frame]
-		q = where(temp.gti eq 0, nq)
+		q = where(temp.dqi eq 0, nq)
 		if (nq gt 0) then begin
 			temp = temp(q)
 			tst = max(abs(temp[1:nq - 1].time - temp[0:nq - 2].time))
@@ -162,7 +163,7 @@ START_PROGRAM:
 	ref_dec	= -999
 	for i = 0, n_elems - 1 do begin
 		if (((data[i].roll_ra ne ref_ra) or (data[i].roll_dec ne ref_dec)) and $
-			(data[i].gti eq 0))then begin
+			(data[i].dqi eq 0))then begin
 			ref_ra 		= data[i].roll_ra
 			ref_dec 	= data[i].roll_dec
 			ad2xy,ref_ra,ref_dec,astr,cx,cy ;Calculate x and y from ref. frame
@@ -179,7 +180,7 @@ START_PROGRAM:
 	dy = -1000
 	q = where((x1 gt -999) and (y1 gt -999), nq)
 ;I insist on at least two points where the boresight is recorded.
-;If not, I set GTI to gti_value.
+;If not, I set DQI to dqi_value.
 	if (nq gt 2)then begin
 		tx = x1(q)
 		ty = y1(q)
@@ -187,7 +188,7 @@ START_PROGRAM:
 		dy = fltarr(nq)
 		dx(1:nq-1) = tx(1:nq-1) - tx(0:nq-2)
 		dy(1:nq-1) = ty(1:nq-1) - ty(0:nq-2)
-	endif else data.gti = gti_value
+	endif else data.dqi = dqi_value
 		
 ;Interpolate x and y into each frame. If the offset is more than
 ;max_off, I don't consider it.
@@ -219,7 +220,7 @@ START_PROGRAM:
 	for i = 0l,nq - 1 do begin
 		min_index = (q[i] - 200) > 0
 		max_index = (q[i] + 200) < (n_elems - 1)
-		data[min_index:max_index].gti = gti_value
+		data[min_index:max_index].dqi = dqi_value
 	endfor
 
 ;Finished

@@ -16,7 +16,7 @@
 ;				mc			: fltarr(nevents)
 ;				dm			: fltarr(nevents)
 ;				time		: double
-;				gti			: integer
+;				dqi			: integer
 ;				roll_ra		: Ra of boresight
 ;				roll_dec	: Dec of boresight
 ;				roll_rot	: Roll angle from boresight
@@ -29,6 +29,7 @@
 ;	JM: Jul 13, 2016: Added comments.
 ;	JM: Jul 22, 2016: Corrected frame number.
 ;	JM: Jul 24, 2106: Skip over repeated times instead of exiting program
+; 	JML Jul 31, 2016:Changed GTI to DQI
 ; COPYRIGHT:
 ;Copyright 2016 Jayant Murthy
 ;
@@ -88,7 +89,7 @@ function jude_get_xy,data_l1, data_l1a, data_l2, out_hdr
 						mc:intarr(nevents), $	;minimum value in centroid
 						dm:intarr(nevents), $	;maximum value in centroid
 						time: 0d, 			$	;Time from L1 file
-						gti: 0, 			$	;good if 0
+						dqi: 0, 			$	;good if 0
 						roll_ra: 0d, 		$	;From attitude file
 						roll_dec: 0d, 		$	;From attitude file
 						roll_rot: 0d, 		$	;From attitude file
@@ -141,7 +142,7 @@ function jude_get_xy,data_l1, data_l1a, data_l2, out_hdr
 		
 		if ((nqx gt 0) or (nqy gt 0) or (nqf gt 0)) then begin
 			jude_err_process,"errors.txt","parity violation"
-			data_l1a[ielem].gti = data_l1a[ielem].gti + 50
+			data_l1a[ielem].dqi = data_l1a[ielem].dqi + 50
 			break
 		endif
 ;************************* End Check Parity *********************
@@ -151,7 +152,7 @@ function jude_get_xy,data_l1, data_l1a, data_l2, out_hdr
 		dtime = time1 - time0	
 		if ((dtime lt 0) and (ielem gt 0))then begin
 			jude_err_process,"errors.txt","Time goes backward at line" + string(ielem)
-			data_l1a[ielem].gti = data_l1a[ielem].gti + 50
+			data_l1a[ielem].dqi = data_l1a[ielem].dqi + 50
 		endif else time0 = data_l1[ielem].time
 		
 ;********************* Begin filling Level 2 data ************************	
@@ -162,7 +163,7 @@ function jude_get_xy,data_l1, data_l1a, data_l2, out_hdr
 		data_l2(icount).roll_ra 	= data_l1a(ielem).roll_ra
 		data_l2(icount).roll_dec	= data_l1a(ielem).roll_dec
 		data_l2(icount).roll_rot	= data_l1a(ielem).roll_rot
-		data_l2(icount).gti			= data_l1a(ielem).gti
+		data_l2(icount).dqi			= data_l1a(ielem).dqi
 
 ;Calculate the angular motion of the spacecraft.
 		if (icount gt 0)then begin
@@ -194,8 +195,8 @@ function jude_get_xy,data_l1, data_l1a, data_l2, out_hdr
 		if ((dtime eq 0) and (off eq 0)) then begin
 			jude_err_process,"errors.txt","Repeated frame at frame " + $
 				strcompress(string(ielem))
-			data_l2[icount].gti = data_l2[icount].gti + 50
-			data_l1a[ielem].gti = data_l1a[ielem].gti + 50
+			data_l2[icount].dqi = data_l2[icount].dqi + 50
+			data_l1a[ielem].dqi = data_l1a[ielem].dqi + 50
 		endif else begin
 			data_l2(icount).nevents = nq + data_l2(icount).nevents
 			if ((nq gt 0) and ((max(q)+off) lt nevents))then begin
@@ -207,7 +208,7 @@ function jude_get_xy,data_l1, data_l1a, data_l2, out_hdr
 				endfor
 			endif else if ((max(q) + off) gt nevents)then begin
 				excess_count = excess_count + 1
-				data_l2(icount).gti = data_l2(icount).gti + 14
+				data_l2(icount).dqi = data_l2(icount).dqi + 14
 			endif
 		endelse
 		if (nq lt 336)then icount = icount + 1

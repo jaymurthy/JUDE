@@ -2,12 +2,12 @@
 ; NAME:			JUDE_ADD_FRAMES
 ; PURPOSE:		Adds frames into grid for UVIT data
 ; CALLING SEQUENCE:
-;				jude_add_frames, data, grid, gtime, par, xoff, yoff,$
-;								notime = notime,gti_value = gti_value
+;				jude_add_frames, data, grid, pixel_time, par, xoff, yoff,$
+;								notime = notime,dqi_value = dqi_value
 ; INPUTS:
 ;	Data:		Level 2 UVIT data structure. Must include:
 ;					NEVENTS : the total number of events in the frame
-;					GTI		: Data quality flag. 0 is good.
+;					DQI		: Data quality flag. 0 is good.
 ;					X		: X position (decimal)
 ;					Y		: Y position (decimal)
 ; OPTIONAL INPUTS:
@@ -23,16 +23,16 @@
 ;	Yoff:		Y offsets in the grid. If not defined, set to 0.		
 ; OPTIONAL KEYWORDS:
 ;	NOTIME:		The program takes significantly longer if I keep travk of the
-;				amount of time per pixel. IF NOTIME is set (<> 0), I just set gtime to
+;				amount of time per pixel. IF NOTIME is set (<> 0), I just set pixel_time to
 ;				Nframe. The default is for NOTIME to be 0.
-;	GTI_VALUE:	The default value is to reject any frame which has GTI > 0.
-;				If GTI_VALUE is set, I accept any frame with GTI < GTI_VALUE
+;	DQI_VALUE:	The default value is to reject any frame which has DQI > 0.
+;				If DQI_VALUE is set, I accept any frame with DQI < DQI_VALUE
 ; OUTPUTS:
 ;	Grid:		Data array. The size is (512*resolution)x(512*resolution). I
 ;				add the individual photons into the array and then divide by
-;				GTIME. If NOTIME is set, the output is the number of counts per
+;				PIXEL_TIME. If NOTIME is set, the output is the number of counts per
 ;				pixel, else the output is the counts per second.
-;	Gtime:		Array containing exposure time per pixel. If NOTIME is set
+;	Pixel_time:		Array containing exposure time per pixel. If NOTIME is set
 ;				the array contains the total number of frames.
 ;   Nframe:		The total number of frames in the data excluding bad frames.
 ;	RESTRICTIONS:
@@ -42,6 +42,7 @@
 ;
 ;Modification history
 ;JM: June 29, 2016
+:JM: July 31, 2016: Changed GTI to DQI
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -56,8 +57,8 @@
 ;   See the License for the specific language governing permissions and
 ;   limitations under the License.
 ;-
-function jude_add_frames, data, grid, gtime, par, xoff, yoff,$
-						notime = notime,gti_value = gti_value
+function jude_add_frames, data, grid, pixel_time, par, xoff, yoff,$
+						notime = notime,dqi_value = dqi_value
 
 ;If par is not defined in the inputs, I use defaults.
 if (n_elements(par) eq 0) then begin
@@ -82,8 +83,8 @@ if (max_frame eq 0) then max_frame =  n_elements(data)-1
 if (n_elements(xoff) le 1) then xoff = fltarr(n_elements(data))
 if (n_elements(yoff) le 1) then yoff = fltarr(n_elements(data))
 
-;The default is to throw away all frames with gti > 0
-if (n_elements(gti_value) eq 0) then gti_value = 0
+;The default is to throw away all frames with dqi > 0
+if (n_elements(dqi_value) eq 0) then dqi_value = 0
 
 nelems = n_elements(data)
 
@@ -92,7 +93,7 @@ nelems = n_elements(data)
 gxsize = 512*resolution
 gysize = 512*resolution
 grid = fltarr(gxsize, gysize)
-gtime= fltarr(gxsize, gysize)
+pixel_time= fltarr(gxsize, gysize)
 
 ;X and Y indices in the grid.
 gx = lindgen(gxsize, gysize) mod gxsize
@@ -113,7 +114,7 @@ if (not(keyword_set(notime))) then $
 ;Only if frame meets all the conditions
 	if ((data(ielem).nevents ge min_counts) and $
 		(data(ielem).nevents le max_counts) and $
-		(data(ielem).gti le gti_value))then begin
+		(data(ielem).dqi le dqi_value))then begin
 
 ;Find events and convert them into indices in the grid
 ;This is where I would include the flat field
@@ -134,14 +135,14 @@ if (not(keyword_set(notime))) then $
 			dst = (gx - (256*resolution + fix(xoff[ielem])))^2 + $
 				  (gy - (256*resolution + fix(yoff[ielem])))^2
 			q = where(dst lt g_rad^2, nq)
-			if (nq gt 0)then gtime(q) = gtime(q) + dtime
+			if (nq gt 0)then pixel_time(q) = pixel_time(q) + dtime
 		endif
 	endif
 endfor
 
 ;Put grid into units of either counts per pixel per frame or counts per pixel per s.
-if (keyword_set(notime))then gtime = fltarr(gxsize, gysize) + nframe
-q = where(gtime gt 0, nq)
-if (nq gt 0)then grid(q) = grid(q)/gtime(q)
+if (keyword_set(notime))then pixel_time = fltarr(gxsize, gysize) + nframe
+q = where(pixel_time gt 0, nq)
+if (nq gt 0)then grid(q) = grid(q)/pixel_time(q)
 return,nframe ;Return number of frames
 end

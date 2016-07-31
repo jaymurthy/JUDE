@@ -10,7 +10,7 @@
 ; OUTPUTS:
 ;	data_l1a	: structure containing:
 ;					time	:	Double
-;					gti 	:	Good: 0; Other values set as per program. Code TBD
+;					dqi 	:	Good: 0; Other values set as per program. Code TBD
 ;					roll_ra	: Ra from boresight angle
 ;					roll_dec: Dec from boresight angle
 ;					roll_rot: Angle from boresight
@@ -25,6 +25,8 @@
 ;	JM: July 16, 2016: Fixed bug introduced during cleanup
 ;	JM: July 22, 2016: Corrected frame numbering.
 ;	JM: July 24, 2016: Ignore repeated frames (instead of breaking out)
+;	JM: July 31, 2016: Cleaned up error reporting
+;	JM: July 31, 2016: Changed GTI to DQI
 ; COPYRIGHT:
 ;Copyright 2016 Jayant Murthy
 ;
@@ -66,7 +68,7 @@ function jude_set_gti, data_hdr, data_l1, data_l1a, hk, att, out_hdr
 	exit_success = 1
 	exit_failure = 0
 	nelems = n_elements(data_l1)
-	gti_value = 30; Arbitraty GTI value from here. Final codes TBD
+	dqi_value = 30; Arbitraty DQI value from here. Final codes TBD
 
 ;Nominal parameters from data header
 	detector = strcompress(sxpar(data_hdr, "detector"),/remove)
@@ -123,8 +125,8 @@ function jude_set_gti, data_hdr, data_l1, data_l1a, hk, att, out_hdr
 		index0 = max(where(att.time le data_l1a[ielem].time, nq0))
 		index1 = min(where(att.time ge data_l1a[ielem].time, nq1))
 		if ((nq0 eq 0) or (nq1 eq 0))then $
-			data_l1a[ielem].gti = data_l1a[ielem].gti + gti_value 
-		if (data_l1a[ielem].gti eq 0)then begin
+			data_l1a[ielem].dqi = data_l1a[ielem].dqi + dqi_value 
+		if (data_l1a[ielem].dqi eq 0)then begin
 			data_l1a[ielem].roll_ra  = att[index0].roll_ra
 			data_l1a[ielem].roll_dec = att[index0].roll_dec
 			data_l1a[ielem].roll_rot = att[index0].roll_rot
@@ -136,13 +138,13 @@ function jude_set_gti, data_hdr, data_l1, data_l1a, hk, att, out_hdr
 ;********************************BEGIN PROCESSING*************************
 	old_frame = 0
 	for ielem = 0l, nelems - 1 do begin
-		if (data_l1a[ielem].gti eq 0)then begin
+		if (data_l1a[ielem].dqi eq 0)then begin
 ;We only have to check if the data are good
 		
 ;If the frame count goes backwards I mark the data bad.
 			if (frame[ielem] lt old_frame)then begin
-				data_l1a[ielem:nelems-1].gti = data_l1a[ielem:nelems-1].gti +$
-											   gti_value
+				data_l1a[ielem:nelems-1].dqi = data_l1a[ielem:nelems-1].dqi +$
+											   dqi_value
 				str = "Frame goes backward at frame " + string(ielem)
 				str = strcompress(str)
 				jude_err_process,"errors.txt", str
@@ -152,8 +154,8 @@ function jude_set_gti, data_hdr, data_l1, data_l1a, hk, att, out_hdr
 			index0 = max(where(hk.time le data_l1a[ielem].time, nq0))
 			index1 = min(where(hk.time ge data_l1a[ielem].time, nq1))
 			if ((nq0 eq 0) or (nq1 eq 0))then $
-				data_l1a[ielem].gti = data_l1a[ielem].gti + $
-									gti_value	;If I don't find a match
+				data_l1a[ielem].dqi = data_l1a[ielem].dqi + $
+									dqi_value	;If I don't find a match
 	
 ;***************************FILTER CHECK******************************
 ;Check to make sure that the actual filter is the same as the recorded filter.
@@ -170,19 +172,19 @@ function jude_set_gti, data_hdr, data_l1, data_l1a, hk, att, out_hdr
 					sxaddpar,out_hdr,"FILTER", nom_filter,$
 						"F0=closed, F1,F2..Fn(n=1-7 for FUV, NUV; n=1-5"
 					str = "Changing filter to " + strcompress(string(nom_filter))
-					str = str +  " at time " + string(hk[index1].time)
+					str = str +  " at time " + string(long(data_l1[ielem].time))
 					str = strcompress(str)
 					jude_err_process,"errors.txt", str
 					filter_change = 1
-					data_l1a[0:ielem].gti = data_l1a[0:ielem].gti + $
-								gti_value ;Set GTI before first filter change
+					data_l1a[0:ielem].dqi = data_l1a[0:ielem].dqi + $
+								dqi_value ;Set DQI before first filter change
 				endif else begin
-					str = "Ignoring data because filter has changed to  " + $
-					strcompress(string(nom_filter))
-					str = str +  " at time " + string(hk[index1].time)
+					str = "Ignoring data because filter angle is now  " + $
+					strcompress(string(hk[index1].filter))
+					str = str +  " at time " + string(long(data_l1[ielem].time))
 					str = strcompress(str)
 					jude_err_process,"errors.txt", str
-					data_l1a(ielem).gti = data_l1a(ielem).gti + gti_value
+					data_l1a(ielem).dqi = data_l1a(ielem).dqi + dqi_value
 				endelse
 			endif
 	
@@ -200,9 +202,9 @@ function jude_set_gti, data_hdr, data_l1, data_l1a, hk, att, out_hdr
 						jude_err_process,"errors.txt", str
 						old_time = hk(index0).time
 					endif
-				data_l1a[ielem].gti = data_l1a(ielem).gti +  gti_value
+				data_l1a[ielem].dqi = data_l1a(ielem).dqi +  dqi_value
 			endif;Check HV block
-		endif;end gti value check
+		endif;end dqi value check
 	endfor;ielem line 134
 	sxaddhist, "READ_SET_GTI Version 1.0", out_hdr
 

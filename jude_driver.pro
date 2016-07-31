@@ -36,7 +36,7 @@
 ;   				MC              INT       Array[1000]
 ;   				DM              INT       Array[1000]
 ;   				TIME            DOUBLE    0.0000000
-;   				GTI             INT       10
+;   				DQI             INT       10
 ;   				ROLL_RA         DOUBLE    0.0000000
 ;   				ROLL_DEC        DOUBLE    0.0000000
 ;   				ROLL_ROT        DOUBLE    0.0000000
@@ -58,6 +58,7 @@
 ;   JM: July 14, 2016 : More consistency corrections
 ;	JM:	July 22, 2016 : Added keyword to skip BOD if needed.
 ;	JM: July 22, 2016 : Corrected frame numbering when overflow.
+; 	JM: July 31, 2016 : Changed GTI to DQI
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -141,7 +142,7 @@ pro jude_driver, data_dir,$
 				goto,no_process
 			endif
 ;Set up the Level 1A data
-		data_l1a = {uvit_l1a, frameno:0l, time: 0d, gti: 0, $
+		data_l1a = {uvit_l1a, frameno:0l, time: 0d, dqi: 0, $
 					roll_ra: 0d, roll_dec: 0d, roll_rot: 0d}
 		data_l1a = replicate(data_l1a, nelems)
 		data_l1a.time    = data_l1.time
@@ -269,12 +270,12 @@ if (do_not_do_this eq 0)then begin
 				flat_field = mrdfits(params.flat_field, iflat, flat_hdr)
 				iflat = iflat + 1
 			endwhile
-			nframes = jude_add_frames(data_l2, grid, gtime,  par, $
+			nframes = jude_add_frames(data_l2, grid, pixel_time,  par, $
 				xoff, yoff)
 			flat_version = "Flat Field Version " + sxpar(flat_hdr, "Version")
 			sxaddhist, flat_version, out_hdr
 		endif else begin
-			nframes = jude_add_frames(data_l2, grid, gtime,  par, $
+			nframes = jude_add_frames(data_l2, grid, pixel_time,  par, $
 				xoff, yoff)
 			flat_version = "No flat fielding done "
 			distort_version = "No distortion correction done
@@ -288,7 +289,7 @@ endif
 	xoff = data_l2.xoff
 	yoff = data_l2.yoff
 	par = params
-	nframes = jude_add_frames(data_l2, grid, gtime,  par, $
+	nframes = jude_add_frames(data_l2, grid, pixel_time,  par, $
 				xoff, yoff)
 
 ;File definitions
@@ -311,7 +312,7 @@ endif
 	sxaddhist,"Times are in Extension 1", out_hdr, /comment
 	t = params.fits_dir + fname+".fits"
 	mwrfits,grid,t,out_hdr,/create
-	mwrfits,gtime,t
+	mwrfits,pixel_time,t
 	
 ;Write Level 2 data
 	fname = file_basename(file(ifile))
