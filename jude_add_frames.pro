@@ -42,7 +42,7 @@
 ;
 ;Modification history
 ;JM: June 29, 2016
-:JM: July 31, 2016: Changed GTI to DQI
+;JM: July 31, 2016: Changed GTI to DQI
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
