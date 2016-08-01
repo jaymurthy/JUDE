@@ -154,7 +154,7 @@ function jude_get_xy,data_l1, data_l1a, data_l2, out_hdr
 		dtime = time1 - time0	
 		if ((dtime lt 0) and (ielem gt 0))then begin
 			jude_err_process,"errors.txt","Time goes backward at line" + string(ielem)
-			data_l1a[ielem].dqi = data_l1a[ielem].dqi + dqi_
+			data_l1a[ielem].dqi = data_l1a[ielem].dqi + dqi_value
 		endif else time0 = data_l1[ielem].time
 		
 ;********************* Begin filling Level 2 data ************************	
