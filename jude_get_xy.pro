@@ -210,7 +210,7 @@ function jude_get_xy,data_l1, data_l1a, data_l2, out_hdr
 				endfor
 			endif else if ((max(q) + off) gt nevents)then begin
 				excess_count = excess_count + 1
-				data_l2(icount).dqi = data_l2(icount).dqi + dqui_value
+				data_l2(icount).dqi = data_l2(icount).dqi + dqi_value
 			endif
 		endelse
 		if (nq lt 336)then icount = icount + 1
