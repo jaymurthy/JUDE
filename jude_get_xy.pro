@@ -29,7 +29,8 @@
 ;	JM: Jul 13, 2016: Added comments.
 ;	JM: Jul 22, 2016: Corrected frame number.
 ;	JM: Jul 24, 2106: Skip over repeated times instead of exiting program
-; 	JML Jul 31, 2016:Changed GTI to DQI
+; 	JM: Jul 31, 2016: Changed GTI to DQI
+;	JM: Aug. 1, 2016: Fixing DQI values
 ; COPYRIGHT:
 ;Copyright 2016 Jayant Murthy
 ;
@@ -112,6 +113,7 @@ function jude_get_xy,data_l1, data_l1a, data_l2, out_hdr
 	lsb = 1
 	off = 0
 	excess_count=0
+	dqi_value = 4
 ;******************** End Initialization ****************************
 	
 ;Run through all the data frames
@@ -142,7 +144,7 @@ function jude_get_xy,data_l1, data_l1a, data_l2, out_hdr
 		
 		if ((nqx gt 0) or (nqy gt 0) or (nqf gt 0)) then begin
 			jude_err_process,"errors.txt","parity violation"
-			data_l1a[ielem].dqi = data_l1a[ielem].dqi + 50
+			data_l1a[ielem].dqi = data_l1a[ielem].dqi + dqi_value
 			break
 		endif
 ;************************* End Check Parity *********************
@@ -152,7 +154,7 @@ function jude_get_xy,data_l1, data_l1a, data_l2, out_hdr
 		dtime = time1 - time0	
 		if ((dtime lt 0) and (ielem gt 0))then begin
 			jude_err_process,"errors.txt","Time goes backward at line" + string(ielem)
-			data_l1a[ielem].dqi = data_l1a[ielem].dqi + 50
+			data_l1a[ielem].dqi = data_l1a[ielem].dqi + dqi_
 		endif else time0 = data_l1[ielem].time
 		
 ;********************* Begin filling Level 2 data ************************	
@@ -195,8 +197,8 @@ function jude_get_xy,data_l1, data_l1a, data_l2, out_hdr
 		if ((dtime eq 0) and (off eq 0)) then begin
 			jude_err_process,"errors.txt","Repeated frame at frame " + $
 				strcompress(string(ielem))
-			data_l2[icount].dqi = data_l2[icount].dqi + 50
-			data_l1a[ielem].dqi = data_l1a[ielem].dqi + 50
+			data_l2[icount].dqi = data_l2[icount].dqi + dqi_value
+			data_l1a[ielem].dqi = data_l1a[ielem].dqi + dqi_value
 		endif else begin
 			data_l2(icount).nevents = nq + data_l2(icount).nevents
 			if ((nq gt 0) and ((max(q)+off) lt nevents))then begin
@@ -208,7 +210,7 @@ function jude_get_xy,data_l1, data_l1a, data_l2, out_hdr
 				endfor
 			endif else if ((max(q) + off) gt nevents)then begin
 				excess_count = excess_count + 1
-				data_l2(icount).dqi = data_l2(icount).dqi + 14
+				data_l2(icount).dqi = data_l2(icount).dqi + dqui_value
 			endif
 		endelse
 		if (nq lt 336)then icount = icount + 1

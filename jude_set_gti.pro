@@ -27,6 +27,7 @@
 ;	JM: July 24, 2016: Ignore repeated frames (instead of breaking out)
 ;	JM: July 31, 2016: Cleaned up error reporting
 ;	JM: July 31, 2016: Changed GTI to DQI
+;	JM: Aug. 01, 2016: Fixing up DQI values
 ; COPYRIGHT:
 ;Copyright 2016 Jayant Murthy
 ;
@@ -68,7 +69,7 @@ function jude_set_gti, data_hdr, data_l1, data_l1a, hk, att, out_hdr
 	exit_success = 1
 	exit_failure = 0
 	nelems = n_elements(data_l1)
-	dqi_value = 30; Arbitraty DQI value from here. Final codes TBD
+	dqi_value = 8; Arbitraty DQI value from here. Final codes TBD
 
 ;Nominal parameters from data header
 	detector = strcompress(sxpar(data_hdr, "detector"),/remove)
