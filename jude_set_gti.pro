@@ -28,6 +28,9 @@
 ;	JM: July 31, 2016: Cleaned up error reporting
 ;	JM: July 31, 2016: Changed GTI to DQI
 ;	JM: Aug. 01, 2016: Fixing up DQI values
+;	JM: Aug. 02, 2016: Format change in printout.
+;	JM: Aug. 02, 2016: Was flagging too many frames bad
+;	JM: Aug. 02, 2016: New DQI codes
 ; COPYRIGHT:
 ;Copyright 2016 Jayant Murthy
 ;
@@ -69,7 +72,6 @@ function jude_set_gti, data_hdr, data_l1, data_l1a, hk, att, out_hdr
 	exit_success = 1
 	exit_failure = 0
 	nelems = n_elements(data_l1)
-	dqi_value = 8; Arbitraty DQI value from here. Final codes TBD
 
 ;Nominal parameters from data header
 	detector = strcompress(sxpar(data_hdr, "detector"),/remove)
@@ -125,6 +127,7 @@ function jude_set_gti, data_hdr, data_l1, data_l1a, hk, att, out_hdr
 	for ielem = 0l, nelems - 1 do begin
 		index0 = max(where(att.time le data_l1a[ielem].time, nq0))
 		index1 = min(where(att.time ge data_l1a[ielem].time, nq1))
+		dqi_value = 8 ;No attitude information
 		if ((nq0 eq 0) or (nq1 eq 0))then $
 			data_l1a[ielem].dqi = data_l1a[ielem].dqi + dqi_value 
 		if (data_l1a[ielem].dqi eq 0)then begin
@@ -144,8 +147,8 @@ function jude_set_gti, data_hdr, data_l1, data_l1a, hk, att, out_hdr
 		
 ;If the frame count goes backwards I mark the data bad.
 			if (frame[ielem] lt old_frame)then begin
-				data_l1a[ielem:nelems-1].dqi = data_l1a[ielem:nelems-1].dqi +$
-											   dqi_value
+				dqi_value = 16 ;Frame goes backwards
+				data_l1a[ielem].dqi = data_l1a[ielem].dqi + dqi_value
 				str = "Frame goes backward at frame " + string(ielem)
 				str = strcompress(str)
 				jude_err_process,"errors.txt", str
@@ -154,10 +157,11 @@ function jude_set_gti, data_hdr, data_l1, data_l1a, hk, att, out_hdr
 ;Match the housekeeping to the image data by time
 			index0 = max(where(hk.time le data_l1a[ielem].time, nq0))
 			index1 = min(where(hk.time ge data_l1a[ielem].time, nq1))
-			if ((nq0 eq 0) or (nq1 eq 0))then $
+			dqi_value = 8;
+			if ((nq0 eq 0) or (nq1 eq 0))then begin
 				data_l1a[ielem].dqi = data_l1a[ielem].dqi + $
 									dqi_value	;If I don't find a match
-	
+			endif
 ;***************************FILTER CHECK******************************
 ;Check to make sure that the actual filter is the same as the recorded filter.
 ;Isn't it crazy to have to check this but necessary because the Level 1 data
@@ -167,6 +171,7 @@ function jude_set_gti, data_hdr, data_l1, data_l1a, hk, att, out_hdr
 			if ((abs(hk(index0).filter - nom_filter_angle) gt filter_fuzz) or $
 				(abs(hk(index1).filter - nom_filter_angle) gt filter_fuzz))then begin
 				if (filter_change eq 0)then begin
+					dqi_value = 32;
 					q = where (abs(hk(index1).filter - filter_angle) lt filter_fuzz)
 					nom_filter_angle = hk(index0).filter
 					nom_filter = filter(q[0])
@@ -197,12 +202,14 @@ function jude_set_gti, data_hdr, data_l1, data_l1a, hk, att, out_hdr
 				(abs(hk(index1).anode_volt - det_volt[1]) gt 100) or $
 				(abs(hk(index0).mcp_volt   - det_volt[2]) gt 100) or $
 				(abs(hk(index1).mcp_volt   - det_volt[2]) gt 100)) then begin
-					if (old_time ne hk(index0).time)then begin
-						str = "Voltage out of range at time " + string(hk[index1].time)
+					if (old_time ne data_l1[ielem].time)then begin
+						str = "Voltage out of range at time " + $
+						string(long(data_l1[ielem].time))
 						str = strcompress(str)
 						jude_err_process,"errors.txt", str
-						old_time = hk(index0).time
+						old_time = data_l1[ielem].time
 					endif
+				dqi_value = 64;
 				data_l1a[ielem].dqi = data_l1a(ielem).dqi +  dqi_value
 			endif;Check HV block
 		endif;end dqi value check
