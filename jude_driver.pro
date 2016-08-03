@@ -59,6 +59,7 @@
 ;	JM:	July 22, 2016 : Added keyword to skip BOD if needed.
 ;	JM: July 22, 2016 : Corrected frame numbering when overflow.
 ; 	JM: July 31, 2016 : Changed GTI to DQI
+;	JM:	Aug. 03, 2016 : Corrected frame numbering correction.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -84,7 +85,7 @@ pro jude_driver, data_dir,$
 ;Define bookkeeping variables
 	exit_success = 1
 	exit_failure = 0
-	version_date = "July 13, 2016"
+	version_date = "Aug. 03, 2016"
 	print,"Software version: ",version_date	
 	
 ;**************************INITIALIZATION**************************
@@ -150,7 +151,7 @@ pro jude_driver, data_dir,$
 ;this
 		flag = 1
 		for i=0l,nelems-1 do begin
-			data_l1a[i].frameno = data_l1[i].sechdrimageframecount + 32768l*flag
+			data_l1a[i].frameno = data_l1[i].sechdrimageframecount + 65536l*flag
 			if (data_l1[i].sechdrimageframecount eq 32767)then flag = flag+1
 		endfor
 			
