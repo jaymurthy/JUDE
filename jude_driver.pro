@@ -60,6 +60,8 @@
 ;	JM: July 22, 2016 : Corrected frame numbering when overflow.
 ; 	JM: July 31, 2016 : Changed GTI to DQI
 ;	JM:	Aug. 03, 2016 : Corrected frame numbering correction.
+;	JM: Aug. 03, 2016 : Now run whether BOD or not but write into header
+;	JM: Aug. 03, 2016 : Write original file name into header.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -79,8 +81,8 @@
 pro jude_driver, data_dir,$
 	fuv = fuv, nuv = nuv, vis = vis, $
 	start_file = start_file, end_file = end_file,$
-	stage2 = stage2, debug = debug, diffuse = diffuse,$
 	ignore_bod = ignore_bod
+	stage2 = stage2, debug = debug, diffuse = diffuse
 
 ;Define bookkeeping variables
 	exit_success = 1
@@ -157,21 +159,19 @@ pro jude_driver, data_dir,$
 			
 ;There is supposed to be a bright object detection in each observation.
 ;Those observations which don't have one may indicate incomplete Level 1 files.
-;Because of concerns about whether this is a valid check or not, I have added
-;the option to use the file even if the BOD is present.
-		check = jude_check_bod(data_l1,data_l1a)
-		if (check eq exit_failure)then begin
+;Because of concerns about whether this is a valid check or not, I now process
+;anyway but note if the BOD is present.
+		check_bod = jude_check_bod(data_l1,data_l1a)
+		if (check_bod eq exit_failure)then begin
 			jude_err_process,"errors.txt","No BOD in file"
 			print,"No BOD in file"
-			openw,rm_lun,"rm.sh",/get,/append & printf,rm_lun,"rm "+file(ifile) & free_lun,rm_lun
-			if not(keyword_set(ignore_bod))then goto,no_process
 		endif
 
 ;*******************************OUTPUTS****************************
 		grid = fltarr(512*params.resolution, 512*params.resolution)
 		mkhdr, out_hdr, grid
 		jude_create_uvit_hdr,data_hdr0,out_hdr
-
+		if (check_bod eq exit_failure)then sxaddhist,"No BOD done",out_hdr
 ;******************************HOUSEKEEPING and ATTITUDE*********************
 		print,"Begin HK",string(13b),format="(a, a, $)"
 		success  = jude_read_hk_files(data_dir, file(ifile), data_hdr0, hk, att, out_hdr)
@@ -209,6 +209,7 @@ print,"Begin event processing",string(13b),format="(a, a, $)"
 		jude_create_uvit_hdr,data_hdr0,bout_hdr
 		nom_filter = strcompress(sxpar(out_hdr, "filter"),/remove)
 		sxaddpar,bout_hdr,"FILTER",nom_filter
+		sxaddhist,fname, bout_hdr
 ;The calculated offsets are specific to the resolution. When I save them
 ;I renormalize them to a 512x512 array
 		temp = data_l2
@@ -311,6 +312,7 @@ endif
 	sxaddpar,out_hdr,"CUNIT1",'deg'
 	sxaddpar,out_hdr,"CUNIT2",'deg'
 	sxaddhist,"Times are in Extension 1", out_hdr, /comment
+	sxaddhist,fname,out_hdr
 	t = params.fits_dir + fname+".fits"
 	mwrfits,grid,t,out_hdr,/create
 	mwrfits,pixel_time,t
