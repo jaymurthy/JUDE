@@ -2,9 +2,10 @@
 ; NAME:		JUDE_DRIVER
 ; PURPOSE:	Driver routine for JUDE (Jayant's UVIT DATA EXPLORER)
 ; CALLING SEQUENCE:
-;	jude_driver, data_dir,  fuv = fuv, nuv = nuv, vis = vis, $
-;	start_file = start_file, end_file = end_file, $
-;   stage2 = stage2, debug = debug, diffuse = diffuse
+;	jude_driver, data_dir,$
+;		fuv = fuv, nuv = nuv, vis = vis, $
+;		start_file = start_file, end_file = end_file,$
+;		stage2 = stage2, debug = debug, diffuse = diffuse
 ; INPUTS:
 ;	Data_dir 		:Top level directory containing data and houskeeping files for 
 ;					 UVIT Level 1 data. All data files in the directory will be 
@@ -25,7 +26,6 @@
 ;						better by matching that.
 ;	Debug			: Stops before exiting the program to allow variables to be
 ;						checked.
-;	Ignore_bod		: Allows the BOD detection to be skipped.
 ; OUTPUT FILES:
 ;	Level 2 data file: FITS binary table with the following format:
 ;					FRAMENO         LONG      0
@@ -81,7 +81,6 @@
 pro jude_driver, data_dir,$
 	fuv = fuv, nuv = nuv, vis = vis, $
 	start_file = start_file, end_file = end_file,$
-	ignore_bod = ignore_bod
 	stage2 = stage2, debug = debug, diffuse = diffuse
 
 ;Define bookkeeping variables
