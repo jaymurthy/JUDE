@@ -43,6 +43,7 @@
 ;Modification history
 ;JM: June 29, 2016
 ;JM: July 31, 2016: Changed GTI to DQI
+;JM: Aug. 04, 2016: Added option to image data
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -58,7 +59,7 @@
 ;   limitations under the License.
 ;-
 function jude_add_frames, data, grid, pixel_time, par, xoff, yoff,$
-						notime = notime,dqi_value = dqi_value
+						notime = notime,dqi_value = dqi_value, debug = debug
 
 ;If par is not defined in the inputs, I use defaults.
 if (n_elements(par) eq 0) then begin
@@ -127,7 +128,13 @@ if (not(keyword_set(notime))) then $
 			grid[x(i),y(i)] 	= grid[x(i),y(i)] + 1
 		endfor
 		nframe = nframe + 1
-
+		
+		if (n_elements(debug) eq 1)then begin
+			if ((ielem mod debug) eq 0)then begin
+				print,ielem
+				tv,bytscl(rebin(grid,512,512),0,.0001*nframe)
+			endif
+		endif
 ;The UVIT detector is a circle. I have only included pixels within 256
 ;pixels (modified by the resolution) of the centre. This may have to be refined.
 ;Note that I don't do this time consuming step if notime is set.

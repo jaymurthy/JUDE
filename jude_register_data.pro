@@ -38,7 +38,8 @@
 ;		JM:	July 20, 2016: Fixed error in end_frame
 ;		JM: July 22, 2016: Syntax error fixed.
 ;		JM: July 24, 2016: Only require two matched point sources.
-; 		JML July 31, 2016: Changed GTI to DQI
+; 		JM: July 31, 2016: Changed GTI to DQI
+;		JM: Aug. 04, 2016: Added masking to stellar sources.
 ; COPYRIGHT: 
 ;Copyright 2016 Jayant Murthy
 ;
@@ -150,11 +151,12 @@ function jude_register_data, data, data_hdr, params, $
 ;There are some cases where I find too many sources or too few sources
 ;But only test if I'm working on point sources
 	if (stellar eq 1)then begin
-		find,g1,xf1,yf1,ff1,s1,r1,thg1,resolution,[-2.,2.],[.2,2.],/silent
+		t1 = g1*mask
+		find,t1,xf1,yf1,ff1,s1,r1,thg1,resolution,[-2.,2.],[.2,2.],/silent
 		while (n_elements(xf1) gt 50) do begin
 			thg1 = thg1 + threshold
 			xf1=0
-			find,g1,xf1,yf1,ff1,s1,r1,thg1,resolution,[-2.,2.],[.2,2.],/silent
+			find,t1,xf1,yf1,ff1,s1,r1,thg1,resolution,[-2.,2.],[.2,2.],/silent
 		endwhile
 
 ;Too few sources
@@ -208,7 +210,8 @@ function jude_register_data, data, data_hdr, params, $
 ;I have already found the sources in the first reference frame so as I go
 ;along, I find the shifts in successive sets of frames.
 ;Use the find routine to find point sources (more or less based on DAOPHOT)
-				find,g2,xf2,yf2,ff2,s1,r1,thg1,resolution,[-2.,2.],[.2,2.],/silent
+				t2 = g2*mask
+				find,t2,xf2,yf2,ff2,s1,r1,thg1,resolution,[-2.,2.],[.2,2.],/silent
 
 ;If I find more than one source, I can try to match the sources. Because I have
 ;shifted the frames into a common frame of reference, there should be little
