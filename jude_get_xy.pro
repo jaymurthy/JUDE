@@ -32,6 +32,7 @@
 ; 	JM: Jul 31, 2016: Changed GTI to DQI
 ;	JM: Aug. 1, 2016: Fixing DQI values
 ;	JM: Aug. 3, 2016: More DQI values
+;	JM: Aug. 8, 2016: Major error in fixing fractions.
 ; COPYRIGHT:
 ;Copyright 2016 Jayant Murthy
 ;
@@ -64,12 +65,10 @@ function extract_coord,c1, c2, parity
 	q = where(c2 gt 0,nq)
 	if (nq gt 0)then begin
 		fx  = c2*0
-		for i = 0,nq - 1 do fx(q(i)) = ishft(c2(q(i)), -1) and 31
-		sgn = (c2 and 64) eq 64
-		q = where(sgn eq 0,nq)
-		if (nq gt 0) then x(q) = x(q) + float(fx(q))*.03125
-		q = where(sgn ne 0,nq)
-		if (nq gt 0) then x(q) = x(q) - float(fx(q))*.03125
+		for i = 0,nq - 1 do fx(q(i)) = ishft(c2(q(i)), -1) and 63
+		q = where(fx ge 32,nq)
+		if (nq gt 0)then fx[q] = fx[q] - 64
+		x = x + float(fx)*.03125
 	endif
 	return,x
 end
