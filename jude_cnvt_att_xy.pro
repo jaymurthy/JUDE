@@ -29,6 +29,7 @@ function jude_cnvt_att_xy, data, hdr, xoff, yoff, params = params
 ;		JM: July 13, 2016: Code simplification
 ; 		JM: July 31, 2016: Changed GTI to DQI
 ;		JM: Aug. 01, 2016: Rationalizing DQI
+;		JM: Aug. 08, 2016: Bounds error if too few elements
 ; COPYRIGHT:
 ;Copyright 2016 Jayant Murthy
 ;
@@ -110,7 +111,7 @@ START_PROGRAM:
 		start_frame = par.min_frame
 		temp = data[par.min_frame:par.max_frame]
 		q = where(temp.dqi eq 0, nq)
-		if (nq gt 0) then begin
+		if (nq gt 3) then begin
 			temp = temp(q)
 			tst = max(abs(temp[1:nq - 1].time - temp[0:nq - 2].time))
 			if (tst gt max_time_skip)then nframes = 0

@@ -40,6 +40,7 @@
 ;		JM: July 24, 2016: Only require two matched point sources.
 ; 		JM: July 31, 2016: Changed GTI to DQI
 ;		JM: Aug. 04, 2016: Added masking to stellar sources.
+;		JM: Aug. 08, 2016: Zero length array corrected.
 ; COPYRIGHT: 
 ;Copyright 2016 Jayant Murthy
 ;
@@ -101,6 +102,13 @@ function jude_register_data, data, data_hdr, params, $
 	max_ielem 		= end_frame/bin
 	max_time_skip   = 1 ;I cannot register if there are large steps in the data.
 
+	if (max_ielem le start_ielem)then begin
+		print,"Not enough points for registration"
+		xoff = 0
+		yoff = 0
+		return,exit_failure
+	endif
+
 ;Offsets	
 	x1 		  = fltarr(max_ielem) - 9999
 	y1 		  = fltarr(max_ielem) - 9999
@@ -108,12 +116,6 @@ function jude_register_data, data, data_hdr, params, $
 	xopt = 9999
 	yopt = 9999
 
-	if (max_ielem le start_ielem)then begin
-		print,"Not enough points for registration"
-		xoff = 0
-		yoff = 0
-		return,exit_failure
-	endif
 	if (keyword_set(stellar))then stellar = 1 else stellar = 0
 
 ;****************************** END INITIALIZATION **************************
@@ -231,11 +233,11 @@ function jude_register_data, data, data_hdr, params, $
 						yopt = 1000
 						if (error_status ne 0)then catch,/cancel
 					endelse
-				endif else begin ;line 98 If I don't find matches
+				endif else begin ;line 222 If I don't find matches
 					xopt = 1000
 					yopt = 1000
 				endelse
-			endif else begin ;Line 171 stellar
+			endif else begin ;Line 208 stellar
 ;******************************MATCH DIFFUSE SOURCES********************
 ;I use a mask so that I only center on the part I want
 ;This part is really slow.

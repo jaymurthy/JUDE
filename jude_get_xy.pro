@@ -30,9 +30,10 @@
 ;	JM: Jul 22, 2016: Corrected frame number.
 ;	JM: Jul 24, 2106: Skip over repeated times instead of exiting program
 ; 	JM: Jul 31, 2016: Changed GTI to DQI
-;	JM: Aug. 1, 2016: Fixing DQI values
-;	JM: Aug. 3, 2016: More DQI values
-;	JM: Aug. 8, 2016: Major error in fixing fractions.
+;	JM: Aug  1, 2016: Fixing DQI values
+;	JM: Aug  3, 2016: More DQI values
+;	JM: Aug  8, 2016: Major error in fixing fractions.
+;	JM: Aug 10, 2016: Integer overflow.
 ; COPYRIGHT:
 ;Copyright 2016 Jayant Murthy
 ;
@@ -111,7 +112,7 @@ function jude_get_xy,data_l1, data_l1a, data_l2, out_hdr
 ;I can change the msb and lsb if the endianness is different (but it won't be)
 	msb = 0
 	lsb = 1
-	off = 0
+	off = 0l
 	excess_count=0
 ;******************** End Initialization ****************************
 	
@@ -193,7 +194,7 @@ function jude_get_xy,data_l1, data_l1a, data_l2, out_hdr
 ;photon counting algorithm breaks down with too many counts. I limit the 
 ;total number of counts in one frame to 1000, although this can easily
 ;be changed. If the time is repeated or goes backwards, I skip those frames
-		if (nq eq 336)then off = ncent + off else off = 0
+		if (nq eq 336)then off = ncent + off else off = 0l
 		if ((dtime eq 0) and (off eq 0)) then begin
 			dqi_value = 16
 			jude_err_process,"errors.txt","Repeated frame at frame " + $
