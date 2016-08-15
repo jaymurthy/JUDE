@@ -62,6 +62,7 @@
 ;	JM:	Aug. 03, 2016 : Corrected frame numbering correction.
 ;	JM: Aug. 03, 2016 : Now run whether BOD or not but write into header
 ;	JM: Aug. 03, 2016 : Write original file name into header.
+;	JM: Aug. 15, 2016 : Don't process files which are not photon counting.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -86,7 +87,7 @@ pro jude_driver, data_dir,$
 ;Define bookkeeping variables
 	exit_success = 1
 	exit_failure = 0
-	version_date = "Aug. 03, 2016"
+	version_date = "Aug. 15, 2016"
 	print,"Software version: ",version_date	
 	
 ;**************************INITIALIZATION**************************
@@ -143,6 +144,19 @@ pro jude_driver, data_dir,$
 				openw,rm_lun,"rm.sh",/get,/append & printf,rm_lun,"rm "+file(ifile) & free_lun,rm_lun
 				goto,no_process
 			endif
+;I'm running into a number of files that don't have centroid defined.
+;I don't want to run for those.
+			tags = tag_names(data_l1)
+			no_centroid = 0
+			for i = 0, n_elements(tags) - 1 do $
+				if (strpos(tags[i], "CENTROID") ge 0)then no_centroid = 1
+			if (no_centroid eq 0)then begin
+				jude_err_process,"errors.txt","No Centroids"
+				print,"Not photon counting"
+				openw,rm_lun,"rm.sh",/get,/append & printf,rm_lun,"rm "+file(ifile) & free_lun,rm_lun
+				goto,no_process
+			endif
+			
 ;Set up the Level 1A data
 		data_l1a = {uvit_l1a, frameno:0l, time: 0d, dqi: 0, $
 					roll_ra: 0d, roll_dec: 0d, roll_rot: 0d}
