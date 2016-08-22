@@ -63,6 +63,7 @@
 ;	JM: Aug. 03, 2016 : Now run whether BOD or not but write into header
 ;	JM: Aug. 03, 2016 : Write original file name into header.
 ;	JM: Aug. 15, 2016 : Don't process files which are not photon counting.
+;	JM: Aug. 21, 2016 : Add filter information to Level 2 data
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -87,8 +88,8 @@ pro jude_driver, data_dir,$
 ;Define bookkeeping variables
 	exit_success = 1
 	exit_failure = 0
-	version_date = "Aug. 15, 2016"
-	print,"Software version: ",version_date	
+	version_date = "Aug. 21, 2016"
+	print,"Software version: ",version_date
 	
 ;**************************INITIALIZATION**************************
 ;DATA_DIR is the top level directory containing all of the data files. I
@@ -118,8 +119,9 @@ pro jude_driver, data_dir,$
 		}
 	endif else params = jude_params()
 
-;Error log: will overwrite existing file.
-	jude_err_process,"errors.txt","Beginning new pipeline run",/create
+;Error log: will add to existing file.
+	jude_err_process,"errors.txt","Beginning new pipeline run"
+	openw,obs_lun,"observation.csv",/get,/append
 
 ;*********************************BEGIN PROCESSING*****************
 	for ifile = start_file, end_file do begin
@@ -158,7 +160,7 @@ pro jude_driver, data_dir,$
 			endif
 			
 ;Set up the Level 1A data
-		data_l1a = {uvit_l1a, frameno:0l, time: 0d, dqi: 0, $
+		data_l1a = {uvit_l1a, frameno:0l, time: 0d, filter: 0., dqi: 0, $
 					roll_ra: 0d, roll_dec: 0d, roll_rot: 0d}
 		data_l1a = replicate(data_l1a, nelems)
 		data_l1a.time    = data_l1.time
@@ -229,7 +231,6 @@ print,"Begin event processing",string(13b),format="(a, a, $)"
 		temp.xoff = temp.xoff/params.resolution
 		temp.yoff = temp.yoff/params.resolution
 		mwrfits,temp,t,bout_hdr,/create,/no_comment
-
 ;************************LEVEL 2 DATA *********************************
 ;If the Level 2 data exists, I don't have to go through the HK files again.
 ;The goal is to make the Level 2 data self-contained.
@@ -310,6 +311,7 @@ endif
 ;File definitions
 	fname = file_basename(file(ifile))
 	fname = strmid(fname,0,strlen(fname)-8)+"_"+strcompress(string(ifile),/remove)
+	obs_str = file[ifile]
 
 ;Write PNG file
 	t = params.png_dir+fname+".png"
@@ -329,6 +331,7 @@ endif
 	t = params.fits_dir + fname+".fits"
 	mwrfits,grid,t,out_hdr,/create
 	mwrfits,pixel_time,t
+	obs_str = obs_str + " " + t 
 	
 ;Write Level 2 data
 	fname = file_basename(file(ifile))
@@ -338,8 +341,11 @@ endif
 	temp.xoff = temp.xoff/params.resolution
 	temp.yoff = temp.yoff/params.resolution
 	mwrfits,temp,t,bout_hdr,/create,/no_comment
+	obs_str = obs_str + " " + t	
+;Write file log
+	printf,obs_lun,obs_str
 no_process:
 if (keyword_set(debug))then stop
 endfor
-
+free_lun,obs_lun
 end

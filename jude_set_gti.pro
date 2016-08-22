@@ -31,6 +31,7 @@
 ;	JM: Aug. 02, 2016: Format change in printout.
 ;	JM: Aug. 02, 2016: Was flagging too many frames bad
 ;	JM: Aug. 02, 2016: New DQI codes
+;	JM: Aug. 21, 2016: Added filter information
 ; COPYRIGHT:
 ;Copyright 2016 Jayant Murthy
 ;
@@ -168,6 +169,7 @@ function jude_set_gti, data_hdr, data_l1, data_l1a, hk, att, out_hdr
 ;is sometimes wrong. However, I only want to check it once because I want
 ;all the data in file to be from the same filter. Thus I mark the data before 
 ;the first filter "change" as bad.
+			data_l1a[ielem].filter = hk[index0].filter
 			if ((abs(hk(index0).filter - nom_filter_angle) gt filter_fuzz) or $
 				(abs(hk(index1).filter - nom_filter_angle) gt filter_fuzz))then begin
 				if (filter_change eq 0)then begin

@@ -11,6 +11,7 @@ pro jude_create_uvit_hdr, inp_hdr, out_hdr
 ;	None (Out_hdr modified).
 ;Modification History
 ;	JM: July 13, 2016
+;	JM: Aug. 21, 2016: Stop writing so many comments
 ;-
 
 ;Add variables from input header
@@ -27,13 +28,16 @@ sxaddpar,out_hdr,"Equinox",     sxpar(inp_hdr, "Equinox"),"J2000.0"
 sxaddpar,out_hdr,"DETECTOR", sxpar(inp_hdr, "DETECTOR"), "FUV, NUV, or Vis"
 sxaddpar,out_hdr,"SOURCEID", sxpar(inp_hdr, "SOURCEID"), "Source ID"
 sxaddpar,out_hdr,"FILTER",   sxpar(inp_hdr, "FILTER"),"F0=closed, F1,F2..Fn(n=1-7 for FUV, NUV; n=1-5"
-sxaddpar,out_hdr,"AUTHOR","Jayant Murthy","Jayant's UVIT Data Explorer"
 get_date,dte
 sxaddpar,out_hdr,"DATE",dte,"File write date"
-sxaddhist, "JUDE Version 1.0",out_hdr,/comment
-sxaddhist,"Released under Apache License Version 2.0",out_hdr,/comment
-sxaddhist,"Copyright 2016 Jayant Murthy",out_hdr,/comment
-sxaddhist,"http://www.apache.org/licenses/LICENSE-2.0",out_hdr,/comment
+author = string(sxpar(out_hdr, "author"))
+if (author ne "Jayant Murthy")then begin
+	sxaddpar,out_hdr,"AUTHOR","Jayant Murthy","Jayant's UVIT Data Explorer"
+	sxaddhist, "JUDE Version 1.0",out_hdr,/comment
+	sxaddhist,"Released under Apache License Version 2.0",out_hdr,/comment
+	sxaddhist,"Copyright 2016 Jayant Murthy",out_hdr,/comment
+	sxaddhist,"http://www.apache.org/licenses/LICENSE-2.0",out_hdr,/comment
+endif
 end
 
 ;Copyright 2016 Jayant Murthy

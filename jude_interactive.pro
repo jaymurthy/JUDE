@@ -114,15 +114,22 @@ pro jude_interactive, data_file, data_l2, grid, diffuse = diffuse
 
 param_set:
 ans = 'n'
+tgs = tag_names(params)
 while (ans eq 'n') do begin
-	help,/st,params
+	for i = 0,13 do print,i," ",tgs[i]," ",params.(i)
 	read,"Parameters ok (y or n)? ",ans
 	if (ans eq 'n')then begin
 		ans_no = 0
 		ans_val = 0
-		read,"Which parameter do you want to change (0 - 8)? ",ans_no
-		read,"New value?",ans_val
-		params.(ans_no) = ans_val
+		ans_str = ""
+		read,"Which parameter do you want to change (0 - 13)? ",ans_no
+		if (ans_no le 9)then begin
+			read,"New value?",ans_val
+			params.(ans_no) = ans_val
+		endif else begin
+			read,"New value?",ans_str
+			params.(ans_no) = ans_str
+		endelse
 	endif
 endwhile
 
@@ -154,11 +161,15 @@ if (strupcase(detector) eq "FUV")then $
 	mask_threshold = params.ps_threshold_fuv else $
 	mask_threshold = params.ps_threshold_nuv
 
+	if (file_test(params.mask_file))then $
+		restore,params.mask_file $
+	else mask = grid*0 + 1
+
 ;Point source registration
 if (not(keyword_set(diffuse)))then begin
 	par = params
-	tst = jude_register_data(data_l2, out_hdr, par, /stellar,			$
-						bin = params.coarse_bin, 				$
+	tst = jude_register_data(data_l2, out_hdr, par, /stellar,	$
+						bin = params.coarse_bin, mask = mask,	$
 						xstage1 = xoff_sc, ystage1 = yoff_sc,	$
 						threshold = mask_threshold)
 endif else begin
@@ -166,9 +177,6 @@ endif else begin
 ;The diffuse registration works through a 2-d correlation method which is slow.
 ;It works best if a mask to limit the area is used. I look for an IDL save set
 ;with a mask of the same size as the image. (I don't check for the image size.)
-	if (file_test(params.mask_file))then $
-		restore,params.mask_file $
-	else mask = grid*0 + 1
 	par = params
 	tst = jude_register_data(data_l2, out_hdr, par,		$
 						bin = params.coarse_bin, 				$
@@ -206,6 +214,7 @@ t = params.fits_dir + fname+".fits"
 mwrfits,grid,t,out_hdr,/create
 mwrfits,pixel_time,t
 
+print,"Total of ",nframes," frames."
 tv,bytscl(rebin(grid,512,512),0,.0001)
 ans="n"
 read,"Do you want to run with different parameters?",ans

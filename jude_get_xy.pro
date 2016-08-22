@@ -34,6 +34,7 @@
 ;	JM: Aug  3, 2016: More DQI values
 ;	JM: Aug  8, 2016: Major error in fixing fractions.
 ;	JM: Aug 10, 2016: Integer overflow.
+;	JM: Aug 21, 2016: Add filter information to files.
 ; COPYRIGHT:
 ;Copyright 2016 Jayant Murthy
 ;
@@ -92,6 +93,7 @@ function jude_get_xy,data_l1, data_l1a, data_l2, out_hdr
 						dm:intarr(nevents), $	;maximum value in centroid
 						time: 0d, 			$	;Time from L1 file
 						dqi: 0, 			$	;good if 0
+						filter: 0.,			$	;Filter angle
 						roll_ra: 0d, 		$	;From attitude file
 						roll_dec: 0d, 		$	;From attitude file
 						roll_rot: 0d, 		$	;From attitude file
@@ -167,6 +169,7 @@ function jude_get_xy,data_l1, data_l1a, data_l2, out_hdr
 		data_l2(icount).roll_dec	= data_l1a(ielem).roll_dec
 		data_l2(icount).roll_rot	= data_l1a(ielem).roll_rot
 		data_l2(icount).dqi			= data_l1a(ielem).dqi
+		data_l2[icount].filter		= data_l1a[ielem].filter
 
 ;Calculate the angular motion of the spacecraft.
 		if (icount gt 0)then begin
