@@ -64,6 +64,7 @@
 ;	JM: Aug. 03, 2016 : Write original file name into header.
 ;	JM: Aug. 15, 2016 : Don't process files which are not photon counting.
 ;	JM: Aug. 21, 2016 : Add filter information to Level 2 data
+;	JM: Aug. 24, 2016 : Did not initialize binary table header each time.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -220,7 +221,7 @@ print,"Begin event processing",string(13b),format="(a, a, $)"
 		fname = strmid(fname,0,strlen(fname)-8)+"_"+strcompress(string(ifile),/remove)
 		t = params.phot_dir+fname+"_bin.fits"
 		nrows = n_elements(data_l2)
-		fxbhmake,bout_hdr,nrows
+		fxbhmake,bout_hdr,nrows,/initialize
 		jude_create_uvit_hdr,data_hdr0,bout_hdr
 		nom_filter = strcompress(sxpar(out_hdr, "filter"),/remove)
 		sxaddpar,bout_hdr,"FILTER",nom_filter
@@ -238,6 +239,9 @@ print,"Begin event processing",string(13b),format="(a, a, $)"
 ;scale.
 	endif else begin;Read Level 1 or Level 2 (line 126)
 		data_l2 = mrdfits(file(ifile),1,data_hdr0)
+;Temporary measure
+q = where(data_l2.dqi eq 2, nq)
+if (nq gt 0)then data_l2[q].dqi = 0
 		data_l2.xoff = data_l2.xoff*params.resolution
 		data_l2.yoff = data_l2.yoff*params.resolution
 		;Make the basic header

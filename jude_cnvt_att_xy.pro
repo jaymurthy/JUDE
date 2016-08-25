@@ -30,6 +30,7 @@ function jude_cnvt_att_xy, data, hdr, xoff, yoff, params = params
 ; 		JM: July 31, 2016: Changed GTI to DQI
 ;		JM: Aug. 01, 2016: Rationalizing DQI
 ;		JM: Aug. 08, 2016: Bounds error if too few elements
+;		JM: Aug. 23, 2016: I've discontinued the setting of dqi_value for now.
 ; COPYRIGHT:
 ;Copyright 2016 Jayant Murthy
 ;
@@ -63,7 +64,7 @@ START_PROGRAM:
 		resolution = params.resolution
 	endelse
 	bin = 100
-	dqi_value = 2; Flag for problems in attitude
+	dqi_value = 0; Flag for problems in attitude
 	start_frame = 0
 
 	out_hdr = hdr
