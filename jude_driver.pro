@@ -65,6 +65,7 @@
 ;	JM: Aug. 15, 2016 : Don't process files which are not photon counting.
 ;	JM: Aug. 21, 2016 : Add filter information to Level 2 data
 ;	JM: Aug. 24, 2016 : Did not initialize binary table header each time.
+;	JM: Aug. 26, 2016 : Add directory name of original file to header
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -332,6 +333,10 @@ endif
 	sxaddpar,out_hdr,"CUNIT2",'deg'
 	sxaddhist,"Times are in Extension 1", out_hdr, /comment
 	sxaddhist,fname,out_hdr
+	orig_dir = file_dirname(file[ifile])
+	if strlen(orig_dir gt 79) then $
+		orig_dir = strmid(orig_dir, 78, 79, /reverse_offset)
+	sxaddhist,orig_dir, out_hdr
 	t = params.fits_dir + fname+".fits"
 	mwrfits,grid,t,out_hdr,/create
 	mwrfits,pixel_time,t
