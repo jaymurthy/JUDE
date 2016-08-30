@@ -25,6 +25,7 @@
 ; MODIFICATION HISTORY:
 ;	JM: May 15, 2016
 ;	JM: Jul 13, 2016: Comments cleaned up
+;	JM: Aug 30, 2016: Changed time from float to double
 ; COPYRIGHT:
 ;Copyright 2016 Jayant Murthy
 ;
@@ -49,8 +50,8 @@ function jude_read_hk_files, data_dir, file, data_hdr, hk_out, att_out, out_hdr
     version = 1.0
 
 ;Define structures to hold important variables from HK and attitude files
-    hk = {hk, time:0., filter:0., cath_volt:0., anode_volt:0., mcp_volt:0.}
-    att = {att, time:0., roll_ra:0d, roll_dec:0d, roll_rot:0d}
+    hk = {hk, time:0d, filter:0., cath_volt:0., anode_volt:0., mcp_volt:0.}
+    att = {att, time:0d, roll_ra:0d, roll_dec:0d, roll_rot:0d}
 
 ;I should know the detector to read the right keywords
 	detector = strcompress(sxpar(data_hdr, "detector"),/remove)
