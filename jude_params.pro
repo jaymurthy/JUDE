@@ -30,7 +30,7 @@ function jude_params
 params = {JUDE_params,   $
 		resolution: 4,	 $; Number of bins a pixel is divided into
 		min_counts: 0,	 $; The minimum number of events in a frame
-		max_counts: 150,	 $; The maximum number of events in a frame
+		max_counts: 200,	 $; The maximum number of events in a frame
 		min_frame:  0l,	 $; The starting frame number for processing
 		max_frame:  0l,	 $; The ending frame number for processing
 		coarse_bin: 200, $; Number of bins to get decent S/N on a point source

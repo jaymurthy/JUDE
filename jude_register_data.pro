@@ -41,6 +41,7 @@
 ; 		JM: July 31, 2016: Changed GTI to DQI
 ;		JM: Aug. 04, 2016: Added masking to stellar sources.
 ;		JM: Aug. 08, 2016: Zero length array corrected.
+;		JM: Aug. 30, 2016: Registration always done for 512x512 arrays
 ; COPYRIGHT: 
 ;Copyright 2016 Jayant Murthy
 ;
@@ -84,7 +85,7 @@ function jude_register_data, data, data_hdr, params, $
 	start_frame = min(tst, start_frame)
 
 	end_frame	= min([params.max_frame, nelems - 1])
-	resolution	= params.resolution
+	resolution	= 1
 	if (end_frame eq 0) then end_frame = nelems - 1
 	if (n_elements(max_off) eq 0)		then max_off = 100
 	if (n_elements(mask) eq 0)			then mask = 1
@@ -96,6 +97,7 @@ function jude_register_data, data, data_hdr, params, $
 	
 ;I don't want to modify the input parameter set because that is global
 	par				 = params
+	par.resolution   = 1
 	par.min_frame 	= start_frame
 	par.max_frame 	= start_frame + bin
 	start_ielem 	= start_frame/bin
@@ -122,13 +124,15 @@ function jude_register_data, data, data_hdr, params, $
 	
 ;Find the first frame with valid data.		
 ;First frame is at the beginning and I use that as the reference
-	nframes = jude_add_frames(data, g1, pixel_time, par, xstage1, ystage1, /notime)
+	nframes = jude_add_frames(data, g1, pixel_time, par, xstage1/params.resolution, $
+					ystage1/params.resolution, /notime)
 
 ;If there is no data in this frame, I step up until I get data
 	while ((max(g1) eq 0) or (nframes lt bin/2))do begin
 		par.min_frame = par.max_frame
 		par.max_frame = par.min_frame + bin
-		nframes = jude_add_frames(data, g1, pixel_time, par, xstage1, ystage1, /notime)
+		nframes = jude_add_frames(data, g1, pixel_time, par, xstage1/params.resolution, $
+								ystage1/params.resolution, /notime)
 		start_frame = par.min_frame
 		start_ielem = start_ielem + 1
 		if (par.max_frame ge nelems)then begin
@@ -200,7 +204,8 @@ function jude_register_data, data, data_hdr, params, $
 			temp = temp(q)
 			tst = max(abs(temp[1:nq - 1].time - temp[0:nq - 2].time))
 			if (tst gt max_time_skip)then nframes = 0 else $
-				nframes = jude_add_frames(data, g2, pixel_time, par, xstage1, ystage1, /notime)
+				nframes = jude_add_frames(data, g2, pixel_time, par, $
+							xstage1/params.resolution, ystage1/params.resolution, /notime)
 		endif else nframes = 0
 		
 ;I only continue the registration if there is good data
@@ -271,10 +276,10 @@ function jude_register_data, data, data_hdr, params, $
 	endelse
 
 ;Relative offsets so put it back into absolutes
-	xoff = xstage1 + xoff
-	yoff = ystage1 + yoff
-	data.xoff = xoff
-	data.yoff = yoff
+	xoff = xstage1/params.resolution + xoff
+	yoff = ystage1/params.resolution + yoff
+	data.xoff = xoff *params.resolution
+	data.yoff = yoff*params.resolution
 	if (stellar eq 1)then $
 		sxaddhist, "REGISTER_DATA (star match) Version 1.0", data_hdr $
 	else sxaddhist, "REGISTER_DATA (correlate) Version 1.0", data_hdr

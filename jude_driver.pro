@@ -66,6 +66,8 @@
 ;	JM: Aug. 21, 2016 : Add filter information to Level 2 data
 ;	JM: Aug. 24, 2016 : Did not initialize binary table header each time.
 ;	JM: Aug. 26, 2016 : Add directory name of original file to header
+;	JM: Aug. 27, 2016 : Removed CUNIT1, CUNIT2 keywords.
+;	JM: Aug. 27, 2016 : Temporarily disabled the time calculation
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -267,7 +269,7 @@ print,"Begininning Registration",string(13b),format="(a, a, $)"
 	endif else begin
 ;The diffuse registration works through a 2-d correlation method which is slow.
 ;It works best if a mask to limit the area is used. I look for an IDL save set
-;with a mask of the same size as the image. (I don't check for the image size.)
+;with a mask of 512x512 pixels as the image. (I don't check for the image size.)
 		if (file_test(params.mask_file))then $
 			restore,params.mask_file $
 		else mask = grid*0 + 1
@@ -296,8 +298,9 @@ if (do_not_do_this eq 0)then begin
 			flat_version = "Flat Field Version " + sxpar(flat_hdr, "Version")
 			sxaddhist, flat_version, out_hdr
 		endif else begin
+;************NOTE THAT THE /NOTIMES WILL BE REMOVED FOR FINAL PRODUCTION********
 			nframes = jude_add_frames(data_l2, grid, pixel_time,  par, $
-				xoff, yoff)
+				xoff, yoff, /notimes)
 			flat_version = "No flat fielding done "
 			distort_version = "No distortion correction done
 			sxaddhist, flat_version, out_hdr
@@ -328,13 +331,11 @@ endif
 	sxaddpar,out_hdr,"NFRAMES",nframes,"Number of frames"
 	sxaddpar,out_hdr,"EXP_TIME",nframes * 0.035, "Exposure Time in seconds"
 	nom_filter = nom_filter[0]
-	sxaddpar,out_hdr,"FILTER",nom_filter
-	sxaddpar,out_hdr,"CUNIT1",'deg'
-	sxaddpar,out_hdr,"CUNIT2",'deg'
+	sxaddpar,out_hdr,"FILTER",nom_filter,"Filter "
 	sxaddhist,"Times are in Extension 1", out_hdr, /comment
 	sxaddhist,fname,out_hdr
 	orig_dir = file_dirname(file[ifile])
-	if strlen(orig_dir gt 79) then $
+	if (strlen(orig_dir) gt 79) then $
 		orig_dir = strmid(orig_dir, 78, 79, /reverse_offset)
 	sxaddhist,orig_dir, out_hdr
 	t = params.fits_dir + fname+".fits"

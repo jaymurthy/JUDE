@@ -43,7 +43,8 @@
 ;Modification history
 ;JM: June 29, 2016
 ;JM: July 31, 2016: Changed GTI to DQI
-;JM: Aug. 04, 2016: Added option to image data
+;JM: Aug. 04, 2016: Added option to display data
+;JM: Aug. 27, 2016: Changed scale when displaying data.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -132,7 +133,7 @@ if (not(keyword_set(notime))) then $
 		if (n_elements(debug) eq 1)then begin
 			if ((ielem mod debug) eq 0)then begin
 				print,ielem
-				tv,bytscl(rebin(grid,512,512),0,.0001*nframe)
+				tv,bytscl(rebin(grid,512,512),0,mean(grid)*30)
 			endif
 		endif
 ;The UVIT detector is a circle. I have only included pixels within 256
