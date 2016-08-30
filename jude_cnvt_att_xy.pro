@@ -31,6 +31,7 @@ function jude_cnvt_att_xy, data, hdr, xoff, yoff, params = params
 ;		JM: Aug. 01, 2016: Rationalizing DQI
 ;		JM: Aug. 08, 2016: Bounds error if too few elements
 ;		JM: Aug. 23, 2016: I've discontinued the setting of dqi_value for now.
+;		JM: Aug. 30, 2016: Major error in which I was resetting dqi.
 ; COPYRIGHT:
 ;Copyright 2016 Jayant Murthy
 ;
@@ -191,7 +192,7 @@ START_PROGRAM:
 		dy = fltarr(nq)
 		dx(1:nq-1) = tx(1:nq-1) - tx(0:nq-2)
 		dy(1:nq-1) = ty(1:nq-1) - ty(0:nq-2)
-	endif else data.dqi = dqi_value
+	endif else data.dqi = data.dqi + dqi_value
 		
 ;Interpolate x and y into each frame. If the offset is more than
 ;max_off, I don't consider it.
@@ -223,7 +224,7 @@ START_PROGRAM:
 	for i = 0l,nq - 1 do begin
 		min_index = (q[i] - 200) > 0
 		max_index = (q[i] + 200) < (n_elems - 1)
-		data[min_index:max_index].dqi = dqi_value
+		data[min_index:max_index].dqi = data[min_index:max_index].dqi + dqi_value
 	endfor
 
 ;Finished

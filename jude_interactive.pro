@@ -386,7 +386,7 @@ check_diag:
 			mwrfits,pixel_time,t
 
 ;Write FITS events list
-			t = params.phot_dir+fname
+			t = params.phot_dir + fname + ".fits"
 			temp = data_l2
 			temp.xoff = xoff_sc/params.resolution
 			temp.yoff = yoff_sc/params.resolution
