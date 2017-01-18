@@ -16,7 +16,9 @@
 ; 	Returns files of the form *uvtF*.fits* or *uvtN*.fits*. No checks are done
 ;	on the format of the files.
 ; MODIFICATIONS:
-;	July 13, 2016: JM
+;	JM: July 13, 2016
+;	JM: Dec. 06, 2016: Operates on VIS files also.
+;	JM: Dec. 06, 2016: Returns error if multiple detectors picked.	
 ;COPYRIGHT
 ;Copyright 2016 Jayant Murthy
 ;
@@ -37,29 +39,38 @@
 function jude_get_files,data_dir, file, fuv = fuv, nuv = nuv, vis = vis
 
     nfiles = 0
-    if (keyword_set(vis))then begin
-        print,"Use read_vis.pro instead"
-        return,0
-    endif
-    
-    if (keyword_set(fuv) and keyword_set(nuv)) then begin
-        print,"Only one detector at a time"
-        return,0
-    endif
-
-;Note that I only search for gzipped files.   
-    if (keyword_set(fuv))then begin
-        file=file_search(data_dir,"*uvtF*.fits*",count=nfiles)
-        print,"Total of ", nfiles," FUV files"
-    endif
-    
-    if (keyword_set(nuv))then begin
-        file=file_search(data_dir,"*uvtN*.fits*",count=nfiles)
-        print,"Total of ", nfiles," NUV files"
-    endif
-    
+	if ((keyword_set(vis) + keyword_set(nuv) + keyword_set(fuv)) eq 1)then begin	
+	
+	;Note that I only search for gzipped files.   
+		if (keyword_set(fuv))then begin
+			fname = "*uvtF*.fits*"
+			file=file_search(data_dir, fname, count=nfiles)
+			print,"Total of ", nfiles," FUV files"
+		endif
+		
+		if (keyword_set(nuv))then begin
+			fname = "*uvtN*.fits*"
+			file=file_search(data_dir,fname ,count=nfiles)
+			print,"Total of ", nfiles," NUV files"
+		endif
+		
+		if (keyword_set(vis))then begin
+			fname = "*uvtV*.fits.gz"
+		 	file=file_search(data_dir, fname ,count=nfiles)
+		 	print,"Total of ", nfiles," VIS files"
+		endif
+		
+	endif else begin
+		print,"Must select ONE of FUV, NUV, or VIS on the command line"
+		print,"Calling sequence is:"
+		print,"jude_driver,<data_dir>,/DET"
+		print,"where DET is one of FUV, NUV or VIS"
+		return,0
+	endelse
+	
     if (nfiles eq 0)then begin
-        print,"Could not find any files"
+        print,"Could not find any files in the directory: ",data_dir+fname
+        print,"Ensure that you have the trailing slash on the directory."
         return,0
     endif
     return,nfiles

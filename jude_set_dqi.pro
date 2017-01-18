@@ -1,8 +1,8 @@
 ;+
-; NAME:		JUDE_SET_GTI
+; NAME:		JUDE_SET_DQI
 ; PURPOSE:	Perform sanity checks on data
 ; CALLING SEQUENCE:
-;	success = set_gti(data_hdr, data_l1, data_l1a, hk, att)
+;	success = jude_set_dqi(data_hdr, data_l1, data_l1a, hk, att)
 ; INPUTS
 ;	data_l1		: Level 1 data file. Format from mrdfits
 ;	hk			: Housekeeping file from read_hk_file
@@ -68,7 +68,7 @@ pro set_hk, time_in, time_out, filter_in, filter_out, $
 	endelse
 end
 		
-function jude_set_gti, data_hdr, data_l1, data_l1a, hk, att, out_hdr
+function jude_set_dqi, data_hdr, data_l1, data_l1a, hk, att, out_hdr
 
 	exit_success = 1
 	exit_failure = 0
@@ -216,7 +216,7 @@ function jude_set_gti, data_hdr, data_l1, data_l1a, hk, att, out_hdr
 			endif;Check HV block
 		endif;end dqi value check
 	endfor;ielem line 134
-	sxaddhist, "READ_SET_GTI Version 1.0", out_hdr
+	sxaddhist, "READ_SET_DQI Version 1.0", out_hdr
 
 return,exit_success
 end

@@ -60,7 +60,8 @@
 ;   limitations under the License.
 ;-
 function jude_add_frames, data, grid, pixel_time, par, xoff, yoff,$
-						notime = notime,dqi_value = dqi_value, debug = debug
+						notime = notime,dqi_value = dqi_value, debug = debug,$
+						ref_frame = ref_frame
 
 ;If par is not defined in the inputs, I use defaults.
 if (n_elements(par) eq 0) then begin
@@ -79,6 +80,7 @@ endif else begin
 endelse
 
 ;Reset max_frame if it is 0. Can be used as shorthand in the input.
+if (n_elements(ref_frame) eq 0)then ref_frame = min_frame
 if (max_frame eq 0) then max_frame =  n_elements(data)-1
 
 ;If the offsets are not defined, they are set to 0
@@ -107,22 +109,22 @@ g_rad = 256l*resolution
 ;Initialization
 ntime = 0.
 nframe = 0.
-dtime = 0.035; Assume that one time interval is 0.035 seconds
-
+xoff_start = xoff[ref_frame]
+yoff_start = yoff[ref_frame]
 for ielem = min_frame,max_frame do begin
 if (not(keyword_set(notime))) then $
 	print,ielem, max_frame,string(13b),format="(i7,i7,a,$)"
 
 ;Only if frame meets all the conditions
-	if ((data(ielem).nevents ge min_counts) and $
+	if ((data(ielem).nevents gt min_counts) and $
 		(data(ielem).nevents le max_counts) and $
 		(data(ielem).dqi le dqi_value))then begin
 
 ;Find events and convert them into indices in the grid
 ;This is where I would include the flat field
 		q = where(data(ielem).x gt 0,nq)
-		x = round(data(ielem).x(q)*resolution + xoff(ielem))
-		y = round(data(ielem).y(q)*resolution + yoff(ielem))
+		x = round(data(ielem).x(q)*resolution + xoff(ielem)) - xoff_start
+		y = round(data(ielem).y(q)*resolution + yoff(ielem)) - yoff_start
 		x = 0 > x < (gxsize - 1)
 		y = 0 > y < (gysize - 1)
 		for i=0, nq -1 do begin
@@ -143,6 +145,7 @@ if (not(keyword_set(notime))) then $
 			dst = (gx - (256*resolution + fix(xoff[ielem])))^2 + $
 				  (gy - (256*resolution + fix(yoff[ielem])))^2
 			q = where(dst lt g_rad^2, nq)
+			dtime = data[(ielem + 1) < (nelems - 1)].time - data[ielem].time
 			if (nq gt 0)then pixel_time(q) = pixel_time(q) + dtime
 		endif
 	endif

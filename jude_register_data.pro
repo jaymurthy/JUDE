@@ -42,6 +42,8 @@
 ;		JM: Aug. 04, 2016: Added masking to stellar sources.
 ;		JM: Aug. 08, 2016: Zero length array corrected.
 ;		JM: Aug. 30, 2016: Registration always done for 512x512 arrays
+;		JM: Sep. 30, 2016: Removed duplication.
+;		JM: Dec. 26, 2016: Go back to user requested resolution
 ; COPYRIGHT: 
 ;Copyright 2016 Jayant Murthy
 ;
@@ -82,10 +84,9 @@ function jude_register_data, data, data_hdr, params, $
 		yoff = 0
 		return,exit_failure
 	endif
-	start_frame = min(tst, start_frame)
+	start_frame = max([tst, start_frame])
 
 	end_frame	= min([params.max_frame, nelems - 1])
-	resolution	= 1
 	if (end_frame eq 0) then end_frame = nelems - 1
 	if (n_elements(max_off) eq 0)		then max_off = 100
 	if (n_elements(mask) eq 0)			then mask = 1
@@ -96,8 +97,8 @@ function jude_register_data, data, data_hdr, params, $
 	if (max_counts eq 0) then max_counts = max(data.nevents)
 	
 ;I don't want to modify the input parameter set because that is global
-	par				 = params
-	par.resolution   = 1
+	par				= params
+	resolution		= params.resolution
 	par.min_frame 	= start_frame
 	par.max_frame 	= start_frame + bin
 	start_ielem 	= start_frame/bin
@@ -124,16 +125,16 @@ function jude_register_data, data, data_hdr, params, $
 	
 ;Find the first frame with valid data.		
 ;First frame is at the beginning and I use that as the reference
-	nframes = jude_add_frames(data, g1, pixel_time, par, xstage1/params.resolution, $
-					ystage1/params.resolution, /notime)
+	nframes = jude_add_frames(data, g1, pixel_time, par, xstage1, $
+					ystage1, /notime)
 
 ;If there is no data in this frame, I step up until I get data
 	while ((max(g1) eq 0) or (nframes lt bin/2))do begin
 		par.min_frame = par.max_frame
 		par.max_frame = par.min_frame + bin
-		nframes = jude_add_frames(data, g1, pixel_time, par, xstage1/params.resolution, $
-								ystage1/params.resolution, /notime)
 		start_frame = par.min_frame
+		nframes = jude_add_frames(data, g1, pixel_time, par, xstage1, $
+								ystage1, /notime, ref_frame = start_frame)
 		start_ielem = start_ielem + 1
 		if (par.max_frame ge nelems)then begin
 			xoff = xstage1
@@ -158,11 +159,11 @@ function jude_register_data, data, data_hdr, params, $
 ;But only test if I'm working on point sources
 	if (stellar eq 1)then begin
 		t1 = g1*mask
-		find,t1,xf1,yf1,ff1,s1,r1,thg1,resolution,[-2.,2.],[.2,2.],/silent
+		find,t1,xf1,yf1,ff1,s1,r1,thg1,resolution*.5,[-2.,2.],[.2,2.],/silent
 		while (n_elements(xf1) gt 50) do begin
 			thg1 = thg1 + threshold
 			xf1=0
-			find,t1,xf1,yf1,ff1,s1,r1,thg1,resolution,[-2.,2.],[.2,2.],/silent
+			find,t1,xf1,yf1,ff1,s1,r1,thg1,resolution*.5,[-2.,2.],[.2,2.],/silent
 		endwhile
 
 ;Too few sources
@@ -170,14 +171,6 @@ function jude_register_data, data, data_hdr, params, $
 			xoff = xstage1
 			yoff = ystage1
 			jude_err_process,"errors.txt","Not enough points for registration"
-			return,exit_failure
-		endif
-;Too many sources		
-		if (n_elements(xf1) le 2)then begin
-			xoff = xstage1
-			yoff = ystage1
-			str = "Too many sources found for registration, consider changing the threshold"
-			jude_err_process,"errors.txt",str
 			return,exit_failure
 		endif
 
@@ -205,7 +198,7 @@ function jude_register_data, data, data_hdr, params, $
 			tst = max(abs(temp[1:nq - 1].time - temp[0:nq - 2].time))
 			if (tst gt max_time_skip)then nframes = 0 else $
 				nframes = jude_add_frames(data, g2, pixel_time, par, $
-							xstage1/params.resolution, ystage1/params.resolution, /notime)
+							xstage1, ystage1, /notime, ref_frame = start_frame)
 		endif else nframes = 0
 		
 ;I only continue the registration if there is good data
@@ -218,7 +211,7 @@ function jude_register_data, data, data_hdr, params, $
 ;along, I find the shifts in successive sets of frames.
 ;Use the find routine to find point sources (more or less based on DAOPHOT)
 				t2 = g2*mask
-				find,t2,xf2,yf2,ff2,s1,r1,thg1,resolution,[-2.,2.],[.2,2.],/silent
+				find,t2,xf2,yf2,ff2,s1,r1,thg1,resolution*.5,[-2.,2.],[.2,2.],/silent
 
 ;If I find more than one source, I can try to match the sources. Because I have
 ;shifted the frames into a common frame of reference, there should be little
@@ -230,6 +223,12 @@ function jude_register_data, data, data_hdr, params, $
 					d = 5*resolution ;Check optimal shifts
 					srcor,xf1, yf1, xf2, yf2, d, if1,if2,mag=-ff1,/silent
 					catch, error_status						
+					if (n_elements(if1) le 2)then begin
+						if (error_status ne 0)then catch,/cancel
+						d = 10*resolution ;Check optimal shifts
+						srcor,xf1, yf1, xf2, yf2, d, if1,if2,mag=-ff1,/silent
+					endif
+					
 					if ((n_elements(if1) ge 2) and (error_status eq 0))then begin
 						xopt = mean(xf1(if1) - xf2(if2))
 						yopt = mean(yf1(if1) - yf2(if2))
@@ -241,7 +240,7 @@ function jude_register_data, data, data_hdr, params, $
 				endif else begin ;line 222 If I don't find matches
 					xopt = 1000
 					yopt = 1000
-				endelse
+				endelse				
 			endif else begin ;Line 208 stellar
 ;******************************MATCH DIFFUSE SOURCES********************
 ;I use a mask so that I only center on the part I want
@@ -250,16 +249,16 @@ function jude_register_data, data, data_hdr, params, $
 				t2 = g2*mask*(g2 gt thg1)
 				c = correl_images(t1,t2,xoffset=0, yoffset=0)
 				corrmat_analyze,c,xopt,yopt,xoff=0, yoff=0
-			endelse;Line 200
+			endelse;Line 242
 			x1(ielem) =   xopt
 			y1(ielem) =   yopt
 			print,par.min_frame,par.max_frame,xopt,yopt,string(13b),$
 					format="(i7, 2x, i7, f8.2, 2x, f8.2,a,$)"
+			
 		endif else begin ;if there is no good data - line 168
 			x1(ielem) = 1000
 			y1(ielem) = 1000
 		endelse
-		
 	endfor ;ielem loop (line 146)
 ;*******************************END MATCHES*************************
 
@@ -276,13 +275,15 @@ function jude_register_data, data, data_hdr, params, $
 	endelse
 
 ;Relative offsets so put it back into absolutes
-	xoff = xstage1/params.resolution + xoff
-	yoff = ystage1/params.resolution + yoff
-	data.xoff = xoff *params.resolution
-	data.yoff = yoff*params.resolution
-	if (stellar eq 1)then $
-		sxaddhist, "REGISTER_DATA (star match) Version 1.0", data_hdr $
-	else sxaddhist, "REGISTER_DATA (correlate) Version 1.0", data_hdr
+	xoff = xstage1 + xoff
+	yoff = ystage1 + yoff
+	data.xoff = xoff
+	data.yoff = yoff
+	if (n_elements(data_hdr) gt 0)then begin
+		if (stellar eq 1)then $
+			sxaddhist, "REGISTER_DATA (star match) Version 1.0", data_hdr $
+		else sxaddhist, "REGISTER_DATA (correlate) Version 1.0", data_hdr
+	endif
 
 	return,exit_success
 end

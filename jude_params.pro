@@ -27,10 +27,12 @@
 
 function jude_params
 ;Parameter file for JUDE Pipeline
-params = {JUDE_params,   $
+	print,"Using default values for parameters"
+
+	params = {JUDE_params,   $
 		resolution: 4,	 $; Number of bins a pixel is divided into
 		min_counts: 0,	 $; The minimum number of events in a frame
-		max_counts: 200,	 $; The maximum number of events in a frame
+		max_counts: 0,	 $; The maximum number of events in a frame
 		min_frame:  0l,	 $; The starting frame number for processing
 		max_frame:  0l,	 $; The ending frame number for processing
 		coarse_bin: 200, $; Number of bins to get decent S/N on a point source
@@ -38,10 +40,17 @@ params = {JUDE_params,   $
 		ps_threshold_fuv: 3.e-4, 	$; Use 3e-4 for FUV, 
 		ps_threshold_nuv: 1.5e-3,	$; 1.5e-3 for NUV
 		flat_field: "No flat field", $; Calibration flat field
-		mask_file: "crab_mask.sav", 	$;
-		phot_dir: "events/",			$; Output directory for photon events
-		fits_dir: "images/",			$; Output directory for FITS images
-		png_dir: "png/"			$; Output directory for PNG 
-		}
+		events_dir: "events/",			$; Output directory for photon events
+		image_dir: "images/",			$; Output directory for FITS images
+		mask_dir:  "masks/",			$; Output directory for masks
+		def_nuv_dir: "nuv/"	,			$; Default directory for nuv
+		def_fuv_dir: "fuv/"	,			$; Default directory for fuv
+		def_vis_dir: "vis/"	,			$; Default directory for vis		
+		png_dir:  "png/",				$; Output directory for PNG images
+		vis_L2_dir:  "vis_files/",		$; Output directory for VIS files
+		vis_off_dir: "vis_off/",		$; Output directory for offset files
+		vis_add_dir: "vis_add/",		$; Summed vis files
+		temp_dir:	"jude_temp/"		$; Temporary directory
+	}
 return, params
 end

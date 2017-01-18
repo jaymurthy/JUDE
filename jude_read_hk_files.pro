@@ -88,7 +88,7 @@ function jude_read_hk_files, data_dir, file, data_hdr, hk_out, att_out, out_hdr
 					istart = n_elements(hk_out)
 					hk_out = [hk_out, replicate(hk, nhk_in)]
 				endelse
-				for i = 0, nhk_in - 1 do begin 
+				for i = 0l, nhk_in - 1 do begin 
 					hk_out(istart+i).time           = hk_in(i).time
 					hk_out(istart+i).filter         = hk_in(i).FILTERWHEELMOTORANGLE_FUV
 					hk_out(istart+i).cath_volt      = hk_in(i).CATHODE_VOLTAGE_FUV
@@ -104,7 +104,7 @@ function jude_read_hk_files, data_dir, file, data_hdr, hk_out, att_out, out_hdr
 					istart = n_elements(hk_out)
 					hk_out = [hk_out, replicate(hk, sxpar(hk_hdr1, "NAXIS2"))]
 				endelse
-				for i = 0, nhk_in - 1 do begin 
+				for i = 0l, nhk_in - 1 do begin 
 					hk_out(istart+i).time           = hk_in(i).time
 					hk_out(istart+i).filter         = hk_in(i).FILTERWHEELMOTORANGLE_NUV
 					hk_out(istart+i).cath_volt        = hk_in(i).CATHODE_VOLTAGE_NUV
@@ -129,7 +129,7 @@ function jude_read_hk_files, data_dir, file, data_hdr, hk_out, att_out, out_hdr
         return,exit_failure
     endif else begin
 ;Loop through attitude files
-        for iatt = 0,natt-1 do begin
+        for iatt = 0, natt-1 do begin
             att_in   = mrdfits(att_file(iatt), 0, att_hdr0, /silent)
             att_in   = mrdfits(att_file(iatt), 1, att_hdr1, /silent)
             natt_in = sxpar(att_hdr1, "NAXIS2")
@@ -140,7 +140,7 @@ function jude_read_hk_files, data_dir, file, data_hdr, hk_out, att_out, out_hdr
                 istart = n_elements(att_out)
                 att_out = [att_out, replicate(att, natt_in)]
             endelse
-            for i = 0, natt_in - 1 do begin 
+            for i = 0l, natt_in - 1 do begin 
                 att_out(istart+i).time           = att_in(i).time
                 att_out(istart+i).roll_ra         = att_in(i).roll_ra; Nominal boresight RA
                 att_out(istart+i).roll_dec        = att_in(i).roll_dec; Nominal boresight Dec
