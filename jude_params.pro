@@ -30,7 +30,7 @@ function jude_params
 	print,"Using default values for parameters"
 
 	params = {JUDE_params,   $
-		resolution: 4,	 $; Number of bins a pixel is divided into
+		resolution: 8,	 $; Number of bins a pixel is divided into
 		min_counts: 0,	 $; The minimum number of events in a frame
 		max_counts: 0,	 $; The maximum number of events in a frame
 		min_frame:  0l,	 $; The starting frame number for processing

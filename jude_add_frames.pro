@@ -38,13 +38,13 @@
 ;	RESTRICTIONS:
 ;	none
 ;	NOTES:
-;				I assume that each frame is 0.035 seconds
 ;
 ;Modification history
 ;JM: June 29, 2016
 ;JM: July 31, 2016: Changed GTI to DQI
 ;JM: Aug. 04, 2016: Added option to display data
 ;JM: Aug. 27, 2016: Changed scale when displaying data.
+;JM: Apr. 10, 2017: Fixed problem with choice for ref frame.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -80,6 +80,10 @@ endif else begin
 endelse
 
 ;Reset max_frame if it is 0. Can be used as shorthand in the input.
+if (min_frame eq 0)then min_frame = $
+	min(where((data.dqi eq 0) and (abs(xoff) lt 1000) and $
+		(abs(yoff) lt 1000)))
+
 if (n_elements(ref_frame) eq 0)then ref_frame = min_frame
 if (max_frame eq 0) then max_frame =  n_elements(data)-1
 
@@ -111,6 +115,7 @@ ntime = 0.
 nframe = 0.
 xoff_start = xoff[ref_frame]
 yoff_start = yoff[ref_frame]
+
 for ielem = min_frame,max_frame do begin
 if (not(keyword_set(notime))) then $
 	print,ielem, max_frame,string(13b),format="(i7,i7,a,$)"
@@ -118,6 +123,8 @@ if (not(keyword_set(notime))) then $
 ;Only if frame meets all the conditions
 	if ((data(ielem).nevents gt min_counts) and $
 		(data(ielem).nevents le max_counts) and $
+		(abs(xoff[ielem]) lt 1000) and $
+		(abs(yoff[ielem]) lt 1000) and $
 		(data(ielem).dqi le dqi_value))then begin
 
 ;Find events and convert them into indices in the grid

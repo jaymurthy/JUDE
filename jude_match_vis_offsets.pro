@@ -11,6 +11,7 @@
 ;MODIFICATION HISTORY
 ;	JM:	Sept 11, 2016
 ;	JM: Oct. 28, 2016 : Array was incorrectly typecast as int.
+;	JM: Apr. 12, 2016 : Crashed if there were no VIS files. 
 ;COPYRIGHT
 ;Copyright 2016 Jayant Murthy
 ;
@@ -51,6 +52,7 @@ pro jude_match_vis_offsets, uv_events_dir, vis_offset_dir
 	vis_dir = vis_offset_dir
 	files 		= file_search(uv_dir,  "*", count = nuvfiles)
 	vis_files 	= file_search(vis_dir, "*", count = nvisfiles)
+	if (nvisfiles eq 0)then goto,nodata
 
 ;Read visible offsets from the files.
 	vis_start = dblarr(nvisfiles)	;Starting time in each file
@@ -184,4 +186,5 @@ pro jude_match_vis_offsets, uv_events_dir, vis_offset_dir
 		mwrfits, uvdata, fname,uvhdr,/create,/no_comment
 		mwrfits, uv_offsets, fname, bout_hdr, /no_comment
 	endfor
+nodata:
 end

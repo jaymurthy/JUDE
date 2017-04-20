@@ -103,7 +103,7 @@ pro jude_driver_uv, data_dir,$
 ;Define bookkeeping variables
 	exit_success = 1
 	exit_failure = 0
-	version_date = "Dec. 11, 2016"
+	version_date = "Apr. 17, 2017"
 	print,"Software version: ",version_date
 	
 ;**************************INITIALIZATION**************************

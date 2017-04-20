@@ -30,6 +30,8 @@
 pro jude_add_vis, data_dir, offset_dir, output_dir, $
 	start_file = start_file, overwrite = overwrite
 
+	device,window_state = window_state
+
 ;Search for all visible data files in the directory
 file=file_search(data_dir,"*.sav",count = nfiles)
 print,"Total of ", nfiles," VIS files"
@@ -85,15 +87,29 @@ for ifile = start_file, nfiles - 1 do begin
 						if (keyword_set(debug))then tv,bytscl(g1,1000,3000)
 						xoff = off[2, tindex]
 						yoff = off[3, tindex]
+							qbad = where((g1 gt (median(g1) + 300)) or $
+									 (g1 lt (median(g1) - 300)))
+							ybad = qbad / 512
+							yhist = histogram(ybad, min = 0, bin = 1)
+							bad_pixel_y_val = where(yhist gt 5, nbad)
+							bad_pixel_x = indgen(512)
+							bad_pixel_y = intarr(512) + bad_pixel_y_val[0]
+							for ibad = 0, nbad - 1 do begin
+								bad_pixel_x = [bad_pixel_x, indgen(512)]
+								bad_pixel_y = [bad_pixel_y,  intarr(512) + bad_pixel_y_val[ibad]]
+							endfor
+							if (n_elements(bad_pixel_x) gt 0)then $
+								g1[bad_pixel_x, bad_pixel_y] = median(g1)
 						for xindex = 0,511 do for yindex = 0,511 do begin
 							im_xindex = xindex + round(xoff)
 							im_yindex = yindex + round(yoff)
+
 							if ((im_xindex ge 0) and (im_yindex gt 0) and $
 								(im_xindex le 511) and (im_yindex le 511))then begin
 								im[im_xindex, im_yindex] = im[im_xindex,im_yindex] + g1[xindex, yindex]
 							endif
 						endfor
-					if (keyword_set(debug))then tv,bytscl(im/ngood, 1000,3000),512, 0
+					if (window_state[0] ne 0)then tv,bytscl(im/ngood, 1000,3000)
 					old_time = times[iframe]
 					endif
 				endif

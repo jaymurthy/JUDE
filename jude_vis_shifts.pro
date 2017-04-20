@@ -11,6 +11,8 @@
 ; MODIFICATION HISTORY
 ;	JM: Sept 08, 2016
 ;	JM: Sept 14, 2016
+;	JM: Mar. 27, 2017: Adding bad pixel masks (use_bad_pixel keyword).
+;	JM: Apr. 09, 2017: Use the bad pixel mask always
 ;COPYRIGHT
 ;Copyright 2016 Jayant Murthy
 ;
@@ -28,6 +30,8 @@
 
 pro jude_vis_shifts, data_dir, offset_dir, start_file = start_file, $
 	end_file = end_file, interactive = interactive, overwrite = overwrite
+	
+	device,window_state = window_state
 
 ;Search for all visible data files in the directory
 	file=file_search(data_dir,"*.sav",count=nfiles)
@@ -63,9 +67,33 @@ pro jude_vis_shifts, data_dir, offset_dir, start_file = start_file, $
 			do_print = intarr(nframes)
 		
 			while ((n_elements(x1) lt 3) and (start_index lt (nframes - 1)))  do begin	
-	;Begin finding shifts
+;Begin finding shifts
 				if (times[start_index] gt 0)then begin
 					g1 = grid(*,*,start_index)
+					
+;There are now bright rows that show up. My theory is that they only show up
+;after 2017 but, anyway, I have to check for them.
+;Apparently these move around also but, at least, not within an observation.
+					qbad = where((g1 gt (median(g1) + 300)) or $
+								 (g1 lt (median(g1) - 300)), nqbad)
+					if (nqbad gt 5)then begin
+						ybad = qbad / 512
+						yhist = histogram(ybad, min = 0, bin = 1)
+						bad_pixel_y_val = where(yhist gt 5, nbad)
+						bad_pixel_x = indgen(512)
+						bad_pixel_y = intarr(512) + bad_pixel_y_val[0]
+						for ibad = 0, nbad - 1 do begin
+							bad_pixel_x = [bad_pixel_x, indgen(512)]
+							bad_pixel_y = [bad_pixel_y,  intarr(512) + bad_pixel_y_val[ibad]]
+						endfor
+					endif else begin
+						bad_pixel_x = 0
+						bad_pixel_y = 0
+					endelse
+
+					if (n_elements(bad_pixel_x) gt 0)then $
+						g1[bad_pixel_x, bad_pixel_y] = median(g1)
+
 					thresh = 1500.
 					find,g1,x1,y1,f1,s1,r1,thresh,1,[-1.,1.],[.2,1.],/silent
 					while ((n_elements(x1) lt 3) and (thresh gt median(g1)))do begin
@@ -99,6 +127,26 @@ pro jude_vis_shifts, data_dir, offset_dir, start_file = start_file, $
 				if (times[nindex] gt old_time)then begin
 					old_time = times[nindex]
 					g2 = grid(*,*,nindex)
+					qbad = where((g1 gt (median(g1) + 300)) or $
+								 (g1 lt (median(g1) - 300)), nqbad)
+					if (nqbad gt 5)then begin
+						ybad = qbad / 512
+						yhist = histogram(ybad, min = 0, bin = 1)
+						bad_pixel_y_val = where(yhist gt 5, nbad)
+						bad_pixel_x = indgen(512)
+						bad_pixel_y = intarr(512) + bad_pixel_y_val[0]
+						for ibad = 0, nbad - 1 do begin
+							bad_pixel_x = [bad_pixel_x, indgen(512)]
+							bad_pixel_y = [bad_pixel_y,  intarr(512) + bad_pixel_y_val[ibad]]
+						endfor
+					endif else begin
+						bad_pixel_x = 0
+						bad_pixel_y = 0
+					endelse
+					if (n_elements(bad_pixel_x) gt 0)then $
+						g2[bad_pixel_x, bad_pixel_y] = median(g2)
+					if (window_state[0] ne 0)then tv,bytscl(g2,1000,2000)
+					
 					x2 = 0
 					y2 = 0
 					find,g2,x2,y2,f2,s1,r1,thresh,1,[-1.,1.],[.2,1.],/silent

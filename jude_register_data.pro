@@ -178,8 +178,8 @@ function jude_register_data, data, data_hdr, params, $
 				carray = g1[xc_min[icent]:xc_max[icent],yc_min[icent]:yc_max[icent]]
 				tcent = total(carray)
 				siz = size(carray, /dimensions)
-				xcent1[icent] = total(total(carray, 2)*indgen(siz[0]))/tcent
-				ycent1[icent] = total(total(carray, 1)*indgen(siz[1]))/tcent
+				xcent1[icent] = xc_min[icent] + total(total(carray, 2)*indgen(siz[0]))/tcent
+				ycent1[icent] = yc_min[icent] + total(total(carray, 1)*indgen(siz[1]))/tcent
 			endfor
 				
 		endif else begin
@@ -244,8 +244,10 @@ function jude_register_data, data, data_hdr, params, $
 						carray = g2[xc_min[icent]:xc_max[icent],yc_min[icent]:yc_max[icent]]
 						tcent = total(carray)
 						siz = size(carray, /dimensions)
-						xcent2[icent] = total(total(carray, 2)*indgen(siz[0]))/tcent
-						ycent2[icent] = total(total(carray, 1)*indgen(siz[1]))/tcent
+						xcent2[icent] = xc_min[icent] + $
+							total(total(carray, 2)*indgen(siz[0]))/tcent
+						ycent2[icent] = yc_min[icent] + $
+							total(total(carray, 1)*indgen(siz[1]))/tcent
 					endfor
 					xopt = mean(xcent2 - xcent1)
 					yopt = mean(ycent2 - ycent1)
