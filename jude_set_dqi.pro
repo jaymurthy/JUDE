@@ -2,8 +2,9 @@
 ; NAME:		JUDE_SET_DQI
 ; PURPOSE:	Perform sanity checks on data
 ; CALLING SEQUENCE:
-;	success = jude_set_dqi(data_hdr, data_l1, data_l1a, hk, att)
+;	success = jude_set_dqi(data_hdr, data_l1, data_l1a, hk, att, out_hdr)
 ; INPUTS
+;	data_hdr	: Level 1 data file header
 ;	data_l1		: Level 1 data file. Format from mrdfits
 ;	hk			: Housekeeping file from read_hk_file
 ;	att			: Attitude file from read_att_File
@@ -14,7 +15,8 @@
 ;					roll_ra	: Ra from boresight angle
 ;					roll_dec: Dec from boresight angle
 ;					roll_rot: Angle from boresight
-;	success:	1 for successful return; 0 for problematic data
+;	success		:  	1 for successful return; 0 for problematic data
+;	out_hdr		:	Updates output header with program information.
 ;	Included functions:
 ;				set_hk
 ;				check_bod
@@ -32,6 +34,7 @@
 ;	JM: Aug. 02, 2016: Was flagging too many frames bad
 ;	JM: Aug. 02, 2016: New DQI codes
 ;	JM: Aug. 21, 2016: Added filter information
+;	JM:	May  23, 2017: Version 3.1
 ; COPYRIGHT:
 ;Copyright 2016 Jayant Murthy
 ;
@@ -128,7 +131,7 @@ function jude_set_dqi, data_hdr, data_l1, data_l1a, hk, att, out_hdr
 	for ielem = 0l, nelems - 1 do begin
 		index0 = max(where(att.time le data_l1a[ielem].time, nq0))
 		index1 = min(where(att.time ge data_l1a[ielem].time, nq1))
-		dqi_value = 8 ;No attitude information
+		dqi_value = 0 ;No attitude information
 		if ((nq0 eq 0) or (nq1 eq 0))then $
 			data_l1a[ielem].dqi = data_l1a[ielem].dqi + dqi_value 
 		if (data_l1a[ielem].dqi eq 0)then begin
@@ -163,6 +166,8 @@ function jude_set_dqi, data_hdr, data_l1, data_l1a, hk, att, out_hdr
 				data_l1a[ielem].dqi = data_l1a[ielem].dqi + $
 									dqi_value	;If I don't find a match
 			endif
+filter_dqi = 32
+
 ;***************************FILTER CHECK******************************
 ;Check to make sure that the actual filter is the same as the recorded filter.
 ;Isn't it crazy to have to check this but necessary because the Level 1 data
@@ -172,8 +177,12 @@ function jude_set_dqi, data_hdr, data_l1, data_l1a, hk, att, out_hdr
 			data_l1a[ielem].filter = hk[index0].filter
 			if ((abs(hk(index0).filter - nom_filter_angle) gt filter_fuzz) or $
 				(abs(hk(index1).filter - nom_filter_angle) gt filter_fuzz))then begin
-				if (filter_change eq 0)then begin
-					dqi_value = 32;
+				q  = where(abs(hk[index0].filter - filter_angle) lt filter_fuzz, nq)
+				q1 = where(abs(hk[index1].filter - filter_angle) lt filter_fuzz, nq1)
+				if ((nq eq 0) or (nq1 eq 0))then begin
+					dqi_value = filter_dqi
+				endif else if (filter_change eq 0)then begin
+					dqi_value = filter_dqi
 					q = where (abs(hk(index1).filter - filter_angle) lt filter_fuzz)
 					nom_filter_angle = hk(index0).filter
 					nom_filter = filter(q[0])
@@ -211,7 +220,7 @@ function jude_set_dqi, data_hdr, data_l1, data_l1a, hk, att, out_hdr
 						jude_err_process,"errors.txt", str
 						old_time = data_l1[ielem].time
 					endif
-				dqi_value = 64;
+				dqi_value = dqi_value + 64;
 				data_l1a[ielem].dqi = data_l1a(ielem).dqi +  dqi_value
 			endif;Check HV block
 		endif;end dqi value check

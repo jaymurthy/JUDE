@@ -18,7 +18,8 @@
 ; MODIFICATIONS:
 ;	JM: July 13, 2016
 ;	JM: Dec. 06, 2016: Operates on VIS files also.
-;	JM: Dec. 06, 2016: Returns error if multiple detectors picked.	
+;	JM: Dec. 06, 2016: Returns error if multiple detectors picked.
+;	JM: May  23, 2017 Version 3.1
 ;COPYRIGHT
 ;Copyright 2016 Jayant Murthy
 ;
@@ -41,7 +42,7 @@ function jude_get_files,data_dir, file, fuv = fuv, nuv = nuv, vis = vis
     nfiles = 0
 	if ((keyword_set(vis) + keyword_set(nuv) + keyword_set(fuv)) eq 1)then begin	
 	
-	;Note that I only search for gzipped files.   
+	;Files must have an extension that mrdfits will read. Either fits or fits.gz  
 		if (keyword_set(fuv))then begin
 			fname = "*uvtF*.fits*"
 			file=file_search(data_dir, fname, count=nfiles)
@@ -55,7 +56,7 @@ function jude_get_files,data_dir, file, fuv = fuv, nuv = nuv, vis = vis
 		endif
 		
 		if (keyword_set(vis))then begin
-			fname = "*uvtV*.fits.gz"
+			fname = "*uvtV*.fits*"
 		 	file=file_search(data_dir, fname ,count=nfiles)
 		 	print,"Total of ", nfiles," VIS files"
 		endif

@@ -26,6 +26,7 @@
 ;		http://arxiv.org/abs/1607.01874
 ; MODIFICATION HISTORY:
 ;	JM: Dec. 11, 2016 : Driver program for VIS files
+;	JM: May  23, 2017 : Version 3.1
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -50,7 +51,7 @@ pro jude_driver_vis, data_dir,$
 ;Define bookkeeping variables
 	exit_success = 1
 	exit_failure = 0
-	version_date = "Dec. 11, 2016"
+	version_date = "May 23, 2017"
 	print,"Software version: ",version_date
 	
 ;**************************INITIALIZATION**************************

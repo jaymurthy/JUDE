@@ -1,57 +1,23 @@
 ;+
 ; NAME:		JUDE_INTERACTIVE
-; PURPOSE:	Driver routine for JUDE (Jayant's UVIT DATA EXPLORER)
+; PURPOSE:	Interactively run through data file.
 ; CALLING SEQUENCE:
-;	jude_driver, data_dir,$
-;		fuv = fuv, nuv = nuv, vis = vis, $
-;		start_file = start_file, end_file = end_file,$
-;		stage2 = stage2, debug = debug, diffuse = diffuse
+;	jude_interactive, data_file, uv_base_dir,  data_l2, grid, offsets, $
+;					params = params, defaults = defaults, $
+;					max_im_value = max_im_value
 ; INPUTS:
-;	Data_dir 		:Top level directory containing data and houskeeping files for 
-;					 UVIT Level 1 data. All data files in the directory will be 
-;					 processed.
-;	FUV, NUV, VIS	:One and only one of these keywords must be set. The corresponding
-;					 data set will be processed
+;	Data_file 		:The photon list to be processed (Level 2 file).
+;	UV_Base_Dir		:The top level UV directory (typically FUV or NUV)
+; OUTPUTS:
+;   Data_l2			:Structure containing Level 2 data.
+;	Grid			:Coadded image
+;	Offsets			:Will contain s/c motion
 ; OPTIONAL INPUT KEYWORDS:
-;	Start_file		:The default is to process all the files in the directory
-;						structure (start_file = 0). If non-zero, I start with the
-;						Nth file.
-;	End_file		:By default, I process all the files in the directory.
-;					 	If END_FILE is set, I stop with that file.
-;	Stage2			:My Level 2 data files include housekeeping information. If
-;						If STAGE2 is set, I assume that all files (.fits.gz) in
-;						the directory are Level 2 data files.
-;   Diffuse			:The default is to improve on the spacecraft pointing by
-;						using stars. If I have a diffuse sources, I may do 
-;						better by matching that.
-;	Debug			: Stops before exiting the program to allow variables to be
-;						checked.
-;	Defaults		: Runs with default selections.
-; OUTPUT FILES:
-;	Level 2 data file: FITS binary table with the following format:
-;					FRAMENO         LONG      0
-;					ORIG_INDEX      LONG      0
-;					NEVENTS         INT       0
-;					X               FLOAT     Array[1000]
-;   				Y               FLOAT     Array[1000]
-;   				MC              INT       Array[1000]
-;   				DM              INT       Array[1000]
-;   				TIME            DOUBLE    0.0000000
-;   				DQI             INT       10
-;   				ROLL_RA         DOUBLE    0.0000000
-;   				ROLL_DEC        DOUBLE    0.0000000
-;   				ROLL_ROT        DOUBLE    0.0000000
-;   				ANG_STEP        DOUBLE    0.0000000
-;   				XOFF            FLOAT     0.00000
-;   				YOFF            FLOAT     0.00000
-;	FITS image file:	Uncalibrated image file with approximate astrometry.
-;							Size is 512x512 times the resolution
-;	PNG image file:		With default scaling.
-;	Errors.txt	  :Log file.
+;	Defaults		: Runs non-interactively
+;	Max_im_value	: Used in displaying data
+;	Params			: If defined, then these parameters are used.
 ; NOTES:
-;		The latest version of this software may be downloaded from
-;		https://github.com/jaymurthy/JUDE with a description at 
-;		http://arxiv.org/abs/1607.01874
+;					Data files are written out as per the original names
 ; MODIFICATION HISTORY:
 ;	JM: June 26, 2016
 ;	JM: July 13, 2016 : Fixed an error in selecting files.
@@ -64,6 +30,7 @@
 ;	JM: Aug. 03, 2016 : Now run whether BOD or not but write into header
 ;	JM: Aug. 03, 2016 : Write original file name into header.
 ;	JM: Sep. 13, 2016 : Write offsets from visible data.
+;	JM: May  23, 2017 : Version 3.1
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -140,14 +107,15 @@ pro get_offsets, data_l2, offsets, xoff_vis, yoff_vis, xoff_uv, yoff_uv, $
 	endif
 end
 
-pro check_params, params
+function check_params, params
 	tgs  = tag_names(params)
 	ntgs = n_elements(tgs)
 	ans_no = 0
 	while ((ans_no ge 0) and (ans_no lt ntgs))do begin
 		for i = 0,n_elements(tgs) - 1 do $
 			print,i," ",tgs[i]," ",params.(i)
-		read,"Parameter to change? -1 for none: ",ans_no
+		print,"Parameter to change?"
+		read,"-1 to continue, -2 to exit, -3 to debug: ",ans_no
 		if ((ans_no ge 0) and (ans_no le 6))then begin
 			ans_val = 0
 			read,"New value?",ans_val
@@ -164,6 +132,7 @@ pro check_params, params
 			params.(ans_no) = ans_str
 		endif
 	endwhile
+	return, ans_no
 end
 
 pro calc_uv_offsets, offsets, xoff_vis, yoff_vis, detector
@@ -212,7 +181,7 @@ pro plot_diagnostics, data_l2, offsets, data_hdr0, im_hdr, fname, grid, $
 	yoff_uv  = data_l2.yoff
 	
 ;Offsets from VIS data
-	detector = strcompress(sxpar(data_hdr0,"detector"), /remove)	
+	detector = strcompress(sxpar(data_hdr0,"detector"), /remove)
 	calc_uv_offsets, offsets, xoff_vis, yoff_vis, detector
 	
 ;Set the range for plotting the offsets
@@ -262,8 +231,8 @@ pro plot_diagnostics, data_l2, offsets, data_hdr0, im_hdr, fname, grid, $
 	
 end
 
-pro jude_interactive, data_file, data_l2, grid, offsets, uv_base_dir, params = params, $
-					defaults = defaults
+pro jude_interactive, data_file, uv_base_dir, data_l2, grid, offsets, params = params, $
+					defaults = defaults, max_im_value = max_im_value
 
 ;Define bookkeeping variables
 	exit_success = 1
@@ -277,7 +246,7 @@ pro jude_interactive, data_file, data_l2, grid, offsets, uv_base_dir, params = p
 		window, 0, xs = 1024, ys = 512, xp = 10, yp = 500
 
 ;The image brightness may vary so define a default which may change
-	max_im_value = 0.0005
+	if (n_elements(max_im_value) eq 0)then max_im_value  = 0.000002
 	
 ;If the default keyword is set we run non-interactively.
 	if not(keyword_set(defaults))then defaults = 0
@@ -309,7 +278,7 @@ pro jude_interactive, data_file, data_l2, grid, offsets, uv_base_dir, params = p
 	
 ;Calculate the median from the data. This is photon counting so sigma
 ; = sqrt(median). I allow 5 sigma.
-	q = where(data_l2.dqi eq 0, nq)
+	q = where((data_l2.dqi eq 0) and (data_l2.nevents gt 0), nq)
 
 	if (nq gt 10)then begin
 		dave = median(data_l2[q].nevents)
@@ -326,15 +295,7 @@ pro jude_interactive, data_file, data_l2, grid, offsets, uv_base_dir, params = p
 		png_dir     = uv_base_dir + params.png_dir
 		image_file  = image_dir   + fname + ".fits.gz"
 		
-;If the image file exists I use it. 
-		if (file_test(image_file) ne 0)then begin
-			grid = mrdfits(image_file, 0, im_hdr)
-			if (max(grid) eq 0)then begin
-				grid = fltarr(2048, 2048)
-				print, "No data in the image"
-			endif
-		endif else grid = fltarr(2048, 2048)
-
+		
 ;Read the VIS offsets if they exist. If they don't exist, set up a 
 ;dummy array and header.
 		offsets = mrdfits(data_file, 2, off_hdr)
@@ -349,12 +310,24 @@ pro jude_interactive, data_file, data_l2, grid, offsets, uv_base_dir, params = p
 		calc_uv_offsets, offsets, xoff_vis, yoff_vis, detector
 		xoff_uv = data_l2.xoff
 		yoff_uv = data_l2.yoff
-			
+
+;Create image
+		nframes = jude_add_frames(data_l2, grid, pixel_time,  params, $
+				xoff_uv*params.resolution, yoff_uv*params.resolution,$
+				/notime)
+
 check_diag:
 ;Plot the image plus useful diagnostics
 		plot_diagnostics, data_l2, offsets, data_hdr0, im_hdr, fname, grid, $
 					params, ymin, ymax
-		tv,bytscl(rebin(grid, 512, 512), 0, max_im_value)
+					
+		if (keyword_set(defaults))then ans = 'n' else ans = "y"
+		while (ans eq "y") do begin
+			tv,bytscl(rebin(grid, 512, 512), 0, max_im_value)
+			print,"Redisplay?"
+			ans = get_kbrd(1)
+			if (ans eq 'y')then read, max_im_value
+		endwhile
 		
 ;Check to see if there is any good data
 		q = where(data_l2.dqi eq 0, nq)
@@ -370,8 +343,10 @@ check_diag:
 		if (ans eq "y")then begin
 
 ;Set parameters for reprocessing
-			if (defaults eq 0)then CHECK_PARAMS, params
-			
+			if (defaults eq 0)then param_ans = CHECK_PARAMS(params) else param_ans = -1
+if (param_ans eq -2)then goto,noproc
+if (param_ans eq -3)then stop
+
 ;Calculate integration times from parameters and plot.
 			params.max_frame = params.max_frame < (ndata_l2 - 1)
 			if (params.max_frame gt 0) then begin
@@ -390,12 +365,20 @@ check_diag:
 				UV_OR_VIS, xoff_vis, yoff_vis, xoff_uv, yoff_uv, $
 					  xoff_sc, yoff_sc, dqi
 		
-			run_registration = 'n'
+			run_centroid = 'y'
 			if (defaults eq 0)then begin
+				print,"Run centroid (y/n)? Default is y."
+				run_centroid = get_kbrd(1)
+				if (run_centroid ne 'n')then run_centroid = 'y'
+			endif
+
+			run_registration = 'n'
+			if ((defaults eq 0) and (run_centroid ne 'y'))then begin
 				print,"Run registration (y/n)? Default is n."
 				run_registration = get_kbrd(1)
+				if (run_registration ne 'y')then run_registration = 'n'
 			endif
-			
+if (param_ans eq -3)then stop
 ;*************************DATA REGISTRATION*******************************	
 			if (run_registration eq 'y')then begin
 				if (strupcase(detector) eq "FUV")then $
@@ -436,6 +419,23 @@ if (ans ne "d")then begin
 				yoff_sc = data_l2.yoff/par.resolution
 			endif
 ;******************************END REGISTRATION BLOCK******************
+
+;****************************** CENTROIDING ***************************
+
+			if (run_centroid eq 'y')then begin
+				nbin = params.fine_bin
+				if (strupcase(detector) eq "FUV")then $
+					thg1 = params.ps_threshold_fuv else $
+					thg1 = params.ps_threshold_nuv
+				p = params
+				xoff_cent = xoff_sc
+				yoff_cent = yoff_sc
+				jude_centroid, data_file, grid, p, xcent, ycent, /display,$
+					nbin = nbin, xoff = xoff_cent, yoff = yoff_cent,$
+					/nosave, defaults = defaults, /new_star
+				xoff_sc = xoff_cent/params.resolution
+				yoff_sc = yoff_cent/params.resolution
+			endif
 			
 ;Final image production
 			par = params
@@ -492,6 +492,11 @@ if (ans ne "d")then begin
 ;Write FITS image file
 				nom_filter = strcompress(sxpar(out_hdr, "filter"),/remove)
 				sxaddpar,out_hdr,"NFRAMES",nframes,"Number of frames"
+
+;Calibration factor
+				cal_factor = jude_apply_cal(detector, nom_filter)
+				sxaddpar, out_hdr, "CALF", cal_factor, "Ergs cm-2 s-1 A-1 (cps)-1"
+
 ;Check the exposure time
 				q = where(data_l2.dqi eq 0, nq)
 				if (nq gt 0)then begin
@@ -508,13 +513,14 @@ if (ans ne "d")then begin
 				sxaddpar, out_hdr,"MINFRAME", params.min_frame,"Starting frame"
 				sxaddpar, out_hdr,"MAXFRAME", params.max_frame,"Ending frame"
 				sxaddhist,"Times are in Extension 1", out_hdr, /comment
+				if (run_centroid eq 'y')then $
+					sxaddhist, "Centroiding run on image.", out_hdr
 				sxaddhist,fname,out_hdr
-								
-;Write image file
 				t = uv_base_dir + params.image_dir + imname + ".fits"
 				print,"writing image file to ",t
 				mwrfits,grid,t,out_hdr,/create
 				mwrfits,pixel_time,t
+				spawn,"gzip -fv " + t
 
 ;Write FITS events list
 				t = uv_base_dir + params.events_dir + fname + ".fits"
@@ -526,14 +532,20 @@ if (ans ne "d")then begin
 ;We've looked and these are the parametes last used.
 				sxaddpar, data_hdr0,"MINFRAME", params.min_frame,$
 						"Recommended starting frame"
-				sxaddpar, out_hdr,"MAXFRAME", params.max_frame,$
+				sxaddpar, data_hdr0,"MAXFRAME", params.max_frame,$
 						"Recommended ending frame"
+				sxaddpar, data_hdr0, "CALF", cal_factor, $
+						"Ergs cm-2 s-1 A-1 (cps)-1"
+
+				if (run_centroid eq 'y')then $
+					sxaddhist, "Centroiding run for s/c motion correction.", data_hdr0
+
 				mwrfits,temp,t,data_hdr0,/create,/no_comment
 				if (n_elements(off_hdr) gt 0)then begin
 					mwrfits,offsets,t,off_hdr,/no_comment
 				endif else mwrfits,offsets,t
+				spawn,"gzip -fv " + t
 			endif
-			
 			if (defaults eq 0)then begin
 				ans = "n"
 				print,"Do you want to run with different parameters?"
@@ -541,6 +553,8 @@ if (ans ne "d")then begin
 			endif else ans = "n"
 			data_l2.xoff = xoff_sc
 			data_l2.yoff = yoff_sc
+			xoff_uv		 = xoff_sc
+			yoff_uv		 = yoff_sc
 			data_l2.dqi = save_dqi
 			if (ans eq "y")then goto, check_diag
 		endif

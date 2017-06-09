@@ -2,14 +2,19 @@
 ; NAME:		JUDE_UV_CLEANUP
 ; PURPOSE:
 ; CALLING SEQUENCE:
-;			jude_uv_cleanup
+;			jude_uv_cleanup, fuv = fuv, nuv = nuv
 ; INPUTS:
+;			NONE: 	Will ask if not specified.
 ; OPTIONAL INPUTS:
 ; OPTIONAL KEYWORDS:
+; 			FUV:	Run for FUV files.
+;			NUV:	Run for NUV files
 ; OUTPUTS:
 ; RESTRICTIONS
+;			The JUDE programs must be in the path.
 ;Modification history
 ;JM: Dec. 11, 2016: Changed scale when displaying data.
+;JM: May  22, 2017: Version 3.1
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -89,9 +94,10 @@ if (file_test(uv_base_dir + params.temp_dir) gt 0)then $
 ;Write the final data.
 	files = file_search(uv_base_dir + params.events_dir, "*.fits.gz", count = nfiles)
 	spawn,"rm " + uv_base_dir + params.png_dir + "*.png"
+	
 	for ifile = 0, nfiles - 1 do $
-		JUDE_INTERACTIVE,files[ifile], data, grid, offsets, $
-			uv_base_dir, params = params, /defaults
+		JUDE_INTERACTIVE,files[ifile], uv_base_dir, data, grid, offsets, $
+			 params = params, /defaults
 	spawn,"gzip -f " + uv_base_dir + params.events_dir + "/*.fits"
 	spawn,"gzip -f " + uv_base_dir + params.image_dir + "/*.fits"
 	obs_file_in  = uv_base_dir + "observation.csv"

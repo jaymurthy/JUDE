@@ -2,7 +2,8 @@
 ; NAME:		JUDE_ADD_VIS
 ; PURPOSE:	Add all visible data files in directory
 ; CALLING SEQUENCE:
-;	jude_add_vis, data_dir, offset_dir, output_dir, start_file = start_file
+;	jude_add_vis, data_dir, offset_dir, output_dir, $
+;	start_file = start_file, overwrite = overwrite
 ; INPUTS:
 ;	data_dir	: Root directory containing visible files.
 ;	offset_dir	: Directory containing offsets
@@ -10,8 +11,12 @@
 ;	vis_dir		: Output directory for save files
 ; OUTPUTS:
 ;	Save files are written to the specified directory.
+; KEYWORDS:
+;	START_FILE	: If I want to skip files in the beginning.
+;	OVERWRITE	: Do not overwrite unless this is set.
 ;MODIFICATION HISTORY
 ;	JM:	Sept 11, 2016
+;	JM: May  22, 2017:	V 3.1
 ;COPYRIGHT
 ;Copyright 2016 Jayant Murthy
 ;
@@ -41,14 +46,14 @@ if (keyword_set(overwrite) eq 0)then overwrite = 0
 if (n_elements(start_file) eq 0)then start_file = 0l
 for ifile = start_file, nfiles - 1 do begin
 
-;Read files	
-	restore,file(ifile)
+;Check file existance
 	fname = file_basename(file(ifile))
 	t = output_dir + strmid(fname, 0, strlen(fname)-4)
 	tst = file_test(t+"*")
 
 	if ((tst eq 0) or (overwrite eq 1))then begin  
 		print,ifile,fname,string(13b),format="(i5,1x,a,a,$)"
+		restore,file(ifile)
 		nframes =n_elements(grid(0,0,*))
 	
 ;Read offsets

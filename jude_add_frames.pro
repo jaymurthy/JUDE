@@ -3,7 +3,8 @@
 ; PURPOSE:		Adds frames into grid for UVIT data
 ; CALLING SEQUENCE:
 ;				jude_add_frames, data, grid, pixel_time, par, xoff, yoff,$
-;								notime = notime,dqi_value = dqi_value
+;						notime = notime, dqi_value = dqi_value, debug = debug,$
+;						ref_frame = ref_frame, apply_dist = apply_dist
 ; INPUTS:
 ;	Data:		Level 2 UVIT data structure. Must include:
 ;					NEVENTS : the total number of events in the frame
@@ -27,12 +28,21 @@
 ;				Nframe. The default is for NOTIME to be 0.
 ;	DQI_VALUE:	The default value is to reject any frame which has DQI > 0.
 ;				If DQI_VALUE is set, I accept any frame with DQI < DQI_VALUE
+;	DEBUG:		Will display the coadded image every DEBUG frames. This can
+;				be useful to determine when we are not able to track the 
+;				spacecraft.
+;	REF_FRAME:	Because of spacecraft motion, the frame chosen by the program
+;				as the reference frame may not be optimal. This allows the
+;				frame to be changed to another frame number.
+;	APPLY_DIST: We have derived a distortion matrix which may be applied to
+;				every frame. I recommend that we apply distortion only to the
+;				coadded image.
 ; OUTPUTS:
 ;	Grid:		Data array. The size is (512*resolution)x(512*resolution). I
 ;				add the individual photons into the array and then divide by
 ;				PIXEL_TIME. If NOTIME is set, the output is the number of counts per
 ;				pixel, else the output is the counts per second.
-;	Pixel_time:		Array containing exposure time per pixel. If NOTIME is set
+;	Pixel_time:	Array containing exposure time per pixel. If NOTIME is set
 ;				the array contains the total number of frames.
 ;   Nframe:		The total number of frames in the data excluding bad frames.
 ;	RESTRICTIONS:
@@ -45,6 +55,8 @@
 ;JM: Aug. 04, 2016: Added option to display data
 ;JM: Aug. 27, 2016: Changed scale when displaying data.
 ;JM: Apr. 10, 2017: Fixed problem with choice for ref frame.
+;JM: May   1, 2017: Option to apply distortion coefficients.
+;JM: May  22, 2017: Version 3.1
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -61,7 +73,7 @@
 ;-
 function jude_add_frames, data, grid, pixel_time, par, xoff, yoff,$
 						notime = notime,dqi_value = dqi_value, debug = debug,$
-						ref_frame = ref_frame
+						ref_frame = ref_frame, apply_dist = apply_dist
 
 ;If par is not defined in the inputs, I use defaults.
 if (n_elements(par) eq 0) then begin
@@ -71,6 +83,18 @@ if (n_elements(par) eq 0) then begin
     max_frame  = n_elements(data)-1	;End with the last frame
     resolution = 1					;Actual physical resolution
 endif else begin
+
+;Calculate the optimal peak rejection using the median. The standard deviation
+;will be the square root of the median.
+	if (par.max_counts eq 0)then begin
+		q = where((data.dqi eq 0) and (data.nevents gt 0), nq)
+		if (nq gt 10)then begin
+			dave = median(data[q].nevents)
+			dstd = sqrt(dave)
+			par.max_counts = dave + dstd*3
+		endif else par.max_counts = 1000
+	endif
+
 ;User defined parameters. These elements have to exist in the structure.
 	min_counts = par.min_counts
 	max_counts = par.max_counts
@@ -78,12 +102,13 @@ endif else begin
 	max_frame  = par.max_frame < ( n_elements(data)-1)
 	resolution = par.resolution
 endelse
+if (n_elements(apply_dist) eq 0)then apply_dist = 0
 
 ;Reset max_frame if it is 0. Can be used as shorthand in the input.
 if (min_frame eq 0)then min_frame = $
 	min(where((data.dqi eq 0) and (abs(xoff) lt 1000) and $
 		(abs(yoff) lt 1000)))
-
+		
 if (n_elements(ref_frame) eq 0)then ref_frame = min_frame
 if (max_frame eq 0) then max_frame =  n_elements(data)-1
 
@@ -109,6 +134,33 @@ gy = lindgen(gxsize, gysize)/gxsize
 
 ;Set to a radius of 256 pixels. This may have to be refined.
 g_rad = 256l*resolution
+
+if (apply_dist ne 0) then begin
+	if (apply_dist eq 1) then begin
+	;Distortion coefficients for FUV
+		a02 = -4.30000e-05
+		a11 = -7.10000e-05
+		a20 =  0.000100000 
+		b02 = -3.40000e-05
+		b11 = -5.90000e-05
+		b20 =  2.80000e-05
+	endif
+	if (apply_dist eq 2) then begin
+	;Distortion coefficients for NUV
+		a02 = -3.70000e-05 
+		a11 = -4.40000e-05 
+		a20 =  1.81000e-05 
+		b02 = -2.70000e-05 
+		b11 = -6.20000e-05 
+		b20 =  2.20000e-05
+	endif	
+	xd = data.x + a02*(data.x - 256)^2 + $
+			a11*(data.x - 256)*(data.y - 256) + a20*(data.y - 256)^2
+	yd = data.y + b02*(data.y - 256)^2 + $
+			b11*(data.x - 256)*(data.y - 256) + b20*(data.x - 256)^2
+	data.x = xd
+	data.y = yd
+endif
 
 ;Initialization
 ntime = 0.
@@ -141,7 +193,8 @@ if (not(keyword_set(notime))) then $
 		
 		if (n_elements(debug) eq 1)then begin
 			if ((ielem mod debug) eq 0)then begin
-				print,ielem
+				print,ielem, data[ielem].time-data[0].time, string(13b),$
+						format="(i7,i10,a,$)"
 				tv,bytscl(rebin(grid,512,512),0,mean(grid)*30)
 			endif
 		endif

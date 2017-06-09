@@ -2,10 +2,10 @@
 ; NAME:		JUDE_DRIVER
 ; PURPOSE:	Driver routine for JUDE (Jayant's UVIT DATA EXPLORER)
 ; CALLING SEQUENCE:
-;	jude_driver, data_dir,$
-;		fuv = fuv, nuv = nuv, $
-;		start_file = start_file, end_file = end_file,$
-;		stage2 = stage2, debug = debug, diffuse = diffuse, notime = notime
+;	jude_driver_uv, data_dir, fuv = fuv, nuv = nuv, $
+;					start_file = start_file, end_file = end_file,$
+;					stage2 = stage2, debug = debug, $
+;					diffuse = diffuse, notime = notime
 ; INPUTS:
 ;	Data_dir 		:Top level directory containing data and houskeeping files for 
 ;					 UVIT Level 1 data. All data files in the directory will be 
@@ -78,6 +78,7 @@
 ;	JM: Sep. 12, 2016 : Minor error in finding thresholds.
 ;	JM: Sep. 13, 2016 : Added notime option for speed.
 ;	JM: Dec. 11, 2016 : Cleaning up
+;	JM: May  23, 2017 : Version 3.1
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -103,7 +104,7 @@ pro jude_driver_uv, data_dir,$
 ;Define bookkeeping variables
 	exit_success = 1
 	exit_failure = 0
-	version_date = "Apr. 17, 2017"
+	version_date = "May 24, 2017"
 	print,"Software version: ",version_date
 	
 ;**************************INITIALIZATION**************************
@@ -259,7 +260,7 @@ pro jude_driver_uv, data_dir,$
 			openw,rm_lun,"rm.sh",/get,/append & printf,rm_lun,"rm "+file(ifile) & free_lun,rm_lun
 			goto,no_process
 		endif
-
+		
 ;*********************************DATA VALIDATION**************************
 		success = JUDE_SET_DQI(data_hdr0, data_l1, data_l1a, hk, att,out_hdr)
 		if (success eq 0)then begin
@@ -412,7 +413,12 @@ endif
 ;Starting and ending frames for image production
 	sxaddpar, out_hdr,"MINFRAME", params.min_frame,"Starting frame"
 	sxaddpar, out_hdr,"MAXFRAME", params.max_frame,"Ending frame"	
-	
+
+;Calibration factor
+	cal_factor = jude_apply_cal(detector, nom_filter)
+	sxaddpar, out_hdr, "CALF", cal_factor, "Ergs cm-2 s-1 A-1 (cps)-1"
+	sxaddpar, bout_hdr, "CALF", cal_factor, "Ergs cm-2 s-1 A-1 (cps)-1"
+
 ;Information about the original file
 	if (strlen(data_dir) gt 69)then $
 		sxaddpar,out_hdr,"BASE_DIR",strmid(data_dir, 68, 69, /reverse_offset) $
@@ -423,7 +429,7 @@ endif
 	if (strlen(uvit_fname) gt 69)then $
 		sxaddpar,out_hdr,"ORIGFILE",strmid(uvit_fname, 68, 69, /reverse_offset) $
 	else sxaddpar,out_hdr,"ORIGFILE",uvit_fname
-	
+
 ;Write out the image followed by the exposure times
 	mwrfits,grid,image_name,out_hdr,/create
 	mwrfits,pixel_time,image_name

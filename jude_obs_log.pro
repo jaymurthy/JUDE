@@ -2,14 +2,16 @@
 ; NAME:		JUDE_OBS_LOG
 ; PURPOSE:	Creates an observation log
 ; CALLING SEQUENCE:
-;	jude_obs_log, data_dir, output_file
+;	jude_obs_log, data_dir, output_file, params
 ; INPUTS:
 ;	data_dir:	Location of data files
 ;	obs_file:	Filename to which data are written
+;	Params:		Parameters, if defined.
 ; OUTPUTS:
 ;	Observation log is written to data file
 ; MODIFICATION HISTORY
 ;	JM: Sept 8, 2016
+;	JM: May 23, 2017 Version 3.1
 ; COPYRIGHT
 ;Copyright 2016 Jayant Murthy
 ;

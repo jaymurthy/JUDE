@@ -32,6 +32,7 @@ function jude_cnvt_att_xy, data, hdr, xoff, yoff, params = params
 ;		JM: Aug. 08, 2016: Bounds error if too few elements
 ;		JM: Aug. 23, 2016: I've discontinued the setting of dqi_value for now.
 ;		JM: Aug. 30, 2016: Major error in which I was resetting dqi.
+;		JM: May  23, 2017: Version 3.1
 ; COPYRIGHT:
 ;Copyright 2016 Jayant Murthy
 ;

@@ -1,8 +1,20 @@
 pro jude_create_mask, input_dir, mask_dir, threshold
-
+;+
+; NAME:		JUDE_CREATE_UVIT_MASK
+; PURPOSE:	Create mask around sources in UVIT image
+; CALLING SEQUENCE:
+;	 jude_create_mask, input_dir, mask_dir, threshold
+; INPUTS:
+;	Inpupt_dir: 	Location of image files.
+;	mask_dir  : 	Location for output mask files
+; OPTIONAL INPUT:
+;	Threshold :		Threshold used to find point sources. Default is 0.
+; OUTPUTS:
+;	None (Files written).
 ;Modification history
 ;June 07, 2016: JM
 ;Sept 11, 2016: JM
+;May  23, 2017: JM Version 3.1
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");

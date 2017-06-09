@@ -2,7 +2,7 @@
 ; NAME:		JUDE_GET_XY
 ; PURPOSE:	Calculate x and y from raw UVIT data strea,
 ; CALLING SEQUENCE:
-;	get_xy, data_l1 data_l1a, data_l2
+;	success = jude_get_xy(data_l1, data_l1a, data_l2, out_hdr)
 ; INPUTS:
 ;	Data_l1 	: Data read from UVIT Level 1 files
 ;	Data_l1a	: Data output of jude_set_gti
@@ -21,6 +21,7 @@
 ;				roll_dec	: Dec of boresight
 ;				roll_rot	: Roll angle from boresight
 ;				ang_step	: Distance between angles
+;	Out_hdr		: Updates FITS header
 ; RESTRICTIONS
 ;	The number of counts in a frame is limited to 1000 for no particular 
 ;   reason except that I had to choose some number.
@@ -35,6 +36,7 @@
 ;	JM: Aug  8, 2016: Major error in fixing fractions.
 ;	JM: Aug 10, 2016: Integer overflow.
 ;	JM: Aug 21, 2016: Add filter information to files.
+;	JM: May 23, 2017: Version 3.1
 ; COPYRIGHT:
 ;Copyright 2016 Jayant Murthy
 ;
@@ -78,7 +80,7 @@ end
 function jude_get_xy,data_l1, data_l1a, data_l2, out_hdr
 
 ;******************** Initialize Variables ******************************
-;  I never limit to  1000 events in a frame. If there are more
+;  I limit to  1000 events in a frame. If there are more
 ;  I print an error and continue
 	nevents = 1000
 	ncent = 336; Maximum number of counts in one frame: Level 1 format

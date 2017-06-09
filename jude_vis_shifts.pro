@@ -2,10 +2,16 @@
 ; NAME:		JUDE_VIS_SHIFTS
 ; PURPOSE:	Calculates shifts between individual frames of the vis data
 ; CALLING SEQUENCE:
-;	jude_vis_shifts, data_dir, offset_dir, start_file = start_file
+;	jude_vis_shifts, data_dir, offset_dir, start_file = start_file, $
+;	end_file = end_file, interactive = interactive, overwrite = overwrite
 ; INPUTS:
 ;	data_dir	: Location of visible save sets
 ;	offset_dir	: Directory where offset files should be written
+; KEYWORDS:
+;	START_FILE  : In case I don't want to start from the first file.
+;	END_FILE	: In case I don't want to go through all the files
+;	INTERACTIVE : If I want to examine the frames before using.
+;	OVERWRITE	: If set, I overwrite any previous files.
 ; OUTPUTS:
 ;	None (offset files written)
 ; MODIFICATION HISTORY
@@ -13,6 +19,7 @@
 ;	JM: Sept 14, 2016
 ;	JM: Mar. 27, 2017: Adding bad pixel masks (use_bad_pixel keyword).
 ;	JM: Apr. 09, 2017: Use the bad pixel mask always
+;	JM: May  22, 2017: Version 3.1
 ;COPYRIGHT
 ;Copyright 2016 Jayant Murthy
 ;
@@ -90,7 +97,6 @@ pro jude_vis_shifts, data_dir, offset_dir, start_file = start_file, $
 						bad_pixel_x = 0
 						bad_pixel_y = 0
 					endelse
-
 					if (n_elements(bad_pixel_x) gt 0)then $
 						g1[bad_pixel_x, bad_pixel_y] = median(g1)
 
@@ -167,6 +173,7 @@ pro jude_vis_shifts, data_dir, offset_dir, start_file = start_file, $
 						yoff[nindex] = yoff[nindex-1]
 					endelse
 				endif
+				
 			endfor
 			q = where(do_print gt 0, nq)
 			if (nq gt 0)then begin

@@ -11,7 +11,8 @@
 ;MODIFICATION HISTORY
 ;	JM:	Sept 11, 2016
 ;	JM: Oct. 28, 2016 : Array was incorrectly typecast as int.
-;	JM: Apr. 12, 2016 : Crashed if there were no VIS files. 
+;	JM: Apr. 12, 2016 : Crashed if there were no VIS files.
+;	JM: May  23, 2017 : Version 3.1
 ;COPYRIGHT
 ;Copyright 2016 Jayant Murthy
 ;

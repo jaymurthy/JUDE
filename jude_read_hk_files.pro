@@ -26,6 +26,7 @@
 ;	JM: May 15, 2016
 ;	JM: Jul 13, 2016: Comments cleaned up
 ;	JM: Aug 30, 2016: Changed time from float to double
+;	JM: May 23, 2017: Version 3.1
 ; COPYRIGHT:
 ;Copyright 2016 Jayant Murthy
 ;
@@ -59,8 +60,10 @@ function jude_read_hk_files, data_dir, file, data_hdr, hk_out, att_out, out_hdr
 ;Many HK files are associated with one observation
 ;The HK and attitude information are associated with the data by time.
     fname = file_basename(file)
-    aux_file = strmid(fname,0,strlen(fname)-24)+"_level"+"*"+".lbt"
+    uvtpos = strpos(fname,"uvt")
+    aux_file = strmid(fname,0,uvtpos+3)+"_level"+"*"+".lbt"
     hk_file = file_search(data_dir,aux_file,count = nhk)
+   
 ;If no HK file exists then return error
     if (nhk eq 0) then begin
         jude_err_process,"errors.txt","Housekeeping file not found"
@@ -122,7 +125,8 @@ function jude_read_hk_files, data_dir, file, data_hdr, hk_out, att_out, out_hdr
 ;The procedure is the same as the housekeeping files but with different
 ;fields in the FITS binary table
     fname = file_basename(file)
-    aux_file = strmid(fname,0,strlen(fname)-24)+"_level"+"*"+".att"
+    uvtpos = strpos(fname,"uvt")
+    aux_file = strmid(fname,0,uvtpos+3)+"_level"+"*"+".att"
     att_file = file_search(data_dir,aux_file,count = natt)
     if (natt eq 0) then begin
         jude_err_process,"errors.txt","Attitude file not found"

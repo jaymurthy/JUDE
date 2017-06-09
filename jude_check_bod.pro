@@ -7,7 +7,7 @@ function jude_check_bod, data_l1, data_l1a
 ;Modifications:
 ; July 22, 2016: JM Modified frame count.
 ; July 31, 2016: JM Changed GTI to DQI
-
+; May  23, 2017: JM: Version 3.1
 ;Note that there is an offset of 32768 in the frame count to keep it integer.
 	frame = data_l1a.frameno
 	exit_success = 1

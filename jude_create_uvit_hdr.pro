@@ -12,6 +12,7 @@ pro jude_create_uvit_hdr, inp_hdr, out_hdr
 ;Modification History
 ;	JM: July 13, 2016
 ;	JM: Aug. 21, 2016: Stop writing so many comments
+;	JM: May  23, 2017: Version 3.1
 ;-
 
 ;Add variables from input header

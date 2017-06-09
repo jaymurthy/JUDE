@@ -2,19 +2,22 @@
 ; NAME:		JUDE_MERGE_FILES
 ; PURPOSE:	Get rid of duplicate files in UVIT directory
 ; CALLING SEQUENCE:
-;	jude_merge_files, data_dir, obs_log, merge_log, merge_dir
+;	jude_merge_files, obs_log, merge_log, uv_base_dir, params
 ; INPUTS:
 ;	data_dir	: Root directory containing Level 2 data
 ;	obs_log		: Observation log written by jude_obs_log
 ;	merge_log	: Merged observation log
 ;	merge_dir	: Directory for merged data
+; OPTIONAL INPUTS:
+;	Params		: parameters
 ; OUTPUTS:
 ;	NONE
 ;	Merged files written into merge_dir
 ;	Observation log written
 ;	rm_files.sh contains list of files to be deleted.
 ; MODIFICATION HISTORY
-;	JM: Sept 8, 2016
+;	JM: Sep. 8, 2016
+;	JM: May 23, 2017 Version 3.1
 ; COPYRIGHT
 ;Copyright 2016 Jayant Murthy
 ;

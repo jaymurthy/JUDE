@@ -9,6 +9,7 @@
 ;	Params:		Data structure (defined below)
 ;MODIFICATION HISTORY
 ;	JM:	July 13, 2016
+;	JM: May  23, 2017 Version 3.1
 ;COPYRIGHT
 ;Copyright 2016 Jayant Murthy
 ;
@@ -36,7 +37,7 @@ function jude_params
 		min_frame:  0l,	 $; The starting frame number for processing
 		max_frame:  0l,	 $; The ending frame number for processing
 		coarse_bin: 200, $; Number of bins to get decent S/N on a point source
-		fine_bin:	50,	 $; Use 2-d correlations to get better pointing
+		fine_bin:	20,	 $; Use 2-d correlations to get better pointing
 		ps_threshold_fuv: 3.e-4, 	$; Use 3e-4 for FUV, 
 		ps_threshold_nuv: 1.5e-3,	$; 1.5e-3 for NUV
 		flat_field: "No flat field", $; Calibration flat field
