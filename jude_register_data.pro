@@ -51,6 +51,7 @@
 ;		JM: Mar. 12, 2017: Add option to use centroids instead.
 ;		JM: May  13, 2017: Moved centroids to a different program.
 ;		JM: May  23, 2017: Version 3.1
+;		JM: Jun  10, 2017: Out of bounds if there was no valid data.
 ; COPYRIGHT: 
 ;Copyright 2016 Jayant Murthy
 ;
@@ -139,7 +140,8 @@ function jude_register_data, data, data_hdr, params, $
 		par.min_frame = par.max_frame
 		par.max_frame = par.min_frame + bin
 		start_frame = par.min_frame
-		nframes = jude_add_frames(data, g1, pixel_time, par, xstage1, $
+		if (par.max_frame lt (nelems -1))then $
+			nframes = jude_add_frames(data, g1, pixel_time, par, xstage1, $
 								ystage1, /notime, ref_frame = start_frame)
 		start_ielem = start_ielem + 1
 		if (par.max_frame ge nelems)then begin
