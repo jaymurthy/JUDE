@@ -25,4 +25,3 @@ spawn,"zip -rv nuv.zip nuv/*"
 ;Merge the data and run the automated registration. Should work in most cases.
 jude_uv_cleanup,/nuv
 jude_uv_cleanup,/fuv
-exit

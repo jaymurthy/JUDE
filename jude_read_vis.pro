@@ -11,6 +11,7 @@
 ;MODIFICATION HISTORY
 ;	JM:	Sept 8, 2016
 ;	JM: May 23, 2017 Version 3.1
+;	JM: Jun 27, 2017 Switched to tag_exist for structure testing.
 ;COPYRIGHT
 ;Copyright 2016 Jayant Murthy
 ;
@@ -68,7 +69,7 @@ pro jude_read_vis, file, vis_dir, start_file = start_file, overwrite = overwrite
 			grid  = fltarr(512,512,nframes)
 			times = dblarr(nframes)
 ;Convert the stored format into integers
-			if (n_elements(im.pixel) eq 0)then begin
+			if (tag_exist(im, 'pixel') eq 0)then begin
 				print,"Probably photon counting"
 				goto,no_process
 			endif

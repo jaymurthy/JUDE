@@ -33,6 +33,7 @@ function jude_cnvt_att_xy, data, hdr, xoff, yoff, params = params
 ;		JM: Aug. 23, 2016: I've discontinued the setting of dqi_value for now.
 ;		JM: Aug. 30, 2016: Major error in which I was resetting dqi.
 ;		JM: May  23, 2017: Version 3.1
+;		JM: Jul.  3, 2017: Changed loop from integer to long
 ; COPYRIGHT:
 ;Copyright 2016 Jayant Murthy
 ;
@@ -166,7 +167,7 @@ START_PROGRAM:
 ;from the reference frame and store. 
 	ref_ra 	= -999
 	ref_dec	= -999
-	for i = 0, n_elems - 1 do begin
+	for i = 0l, n_elems - 1 do begin
 		if (((data[i].roll_ra ne ref_ra) or (data[i].roll_dec ne ref_dec)) and $
 			(data[i].dqi eq 0))then begin
 			ref_ra 		= data[i].roll_ra

@@ -18,6 +18,7 @@
 ; MODIFICATION HISTORY
 ;	JM: Sep. 8, 2016
 ;	JM: May 23, 2017 Version 3.1
+;	JM: Jun 23, 2017 Spawn returned txt[1] which broke the old strsplit
 ; COPYRIGHT
 ;Copyright 2016 Jayant Murthy
 ;
@@ -54,6 +55,7 @@ pro jude_merge_files, obs_log, merge_log, uv_base_dir, params
 
 ;Number of lines in observation log
 	spawn,"wc -l " + obs_log, txt
+	txt = txt[0] ;This seemed to gove a problem in IDL but not GDL
 	wrds = strsplit(txt, /extract)
 	nfiles = fix(wrds[0]) - 1
 	if (nfiles lt 2)then begin

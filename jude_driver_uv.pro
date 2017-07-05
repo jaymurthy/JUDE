@@ -79,6 +79,7 @@
 ;	JM: Sep. 13, 2016 : Added notime option for speed.
 ;	JM: Dec. 11, 2016 : Cleaning up
 ;	JM: May  23, 2017 : Version 3.1
+;	JM: Jun  27, 2017 : Added overwrite option
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -98,8 +99,8 @@
 pro jude_driver_uv, data_dir,$
 	fuv = fuv, nuv = nuv, $
 	start_file = start_file, end_file = end_file,$
-	stage2 = stage2, debug = debug, diffuse = diffuse, notime = notime
-		
+	stage2 = stage2, debug = debug, diffuse = diffuse, notime = notime,$
+	overwrite = overwrite		
 
 ;Define bookkeeping variables
 	exit_success = 1
@@ -115,6 +116,7 @@ pro jude_driver_uv, data_dir,$
 		data_dir = ""
 		read,"Please enter root directory for UVIT data: ",data_dir
 	endif
+	if (keyword_set(overwrite) eq 0)then overwrite = 0
 
 	if (n_elements(fuv) eq 0)then fuv = 0
 	if (n_elements(nuv) eq 0)then nuv = 0
@@ -138,18 +140,8 @@ pro jude_driver_uv, data_dir,$
 ;(after confirmation); if they don't, we create them.
 	if (fuv eq 1)then uv_base_dir = params.def_fuv_dir
 	if (nuv eq 1)then uv_base_dir = params.def_nuv_dir
-	overwrite = 0
-	if (file_test(uv_base_dir))then begin
-		ans = ""
-		read,"Will delete existing directory. OK? (y/n)",ans
-		if (ans eq 'y')then begin
-			spawn,"rm -rf " + uv_base_dir
-		endif else begin
-			ans = ""
-			read,"OK to overwrite files? ",ans
-			if (ans eq "y")then overwrite = 1 else overwrite = 0
-		endelse
-	endif else spawn,"mkdir " + uv_base_dir
+	if (file_test(uv_base_dir) and (overwrite ne 0))then $
+		spawn,"rm -rf " + uv_base_dir
 	if (file_test(uv_base_dir) eq 0)then $
 		spawn,"mkdir " + uv_base_dir
 

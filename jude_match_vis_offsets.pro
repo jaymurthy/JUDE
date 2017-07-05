@@ -33,17 +33,25 @@ function read_offset_file, offset_file, times, xoff, yoff
 ;Function reads the offset file into arrays.
 	spawn,"wc -l "+ offset_file,str
 	noff = getwrd(str) - 1
-	off = dblarr(4, noff)
-	openr,off_lun,offset_file,/get
-		min_ftime = 0d
-		max_ftime = 0d
-		readf,off_lun,min_time, max_time
-		readf,off_lun,off
-	free_lun,off_lun
-	times = reform(off[1,*], noff)
-	xoff  = reform(off[2,*], noff)
-	yoff  = reform(off[3,*], noff)
-	return,off[0,0]
+	if (noff gt 0)then begin
+		off = dblarr(4, noff)
+		openr,off_lun,offset_file,/get
+			min_ftime = 0d
+			max_ftime = 0d
+			readf,off_lun,min_time, max_time
+			readf,off_lun,off
+		free_lun,off_lun
+		times = reform(off[1,*], noff)
+		xoff  = reform(off[2,*], noff)
+		yoff  = reform(off[3,*], noff)
+		return,off[0,0]
+	endif else begin
+;No data
+		times = 0
+		xoff = 0
+		yoff = 0
+		return,0
+	endelse
 end
 
 pro jude_match_vis_offsets, uv_events_dir, vis_offset_dir

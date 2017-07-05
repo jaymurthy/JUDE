@@ -31,6 +31,9 @@
 ;	JM: Aug. 03, 2016 : Write original file name into header.
 ;	JM: Sep. 13, 2016 : Write offsets from visible data.
 ;	JM: May  23, 2017 : Version 3.1
+;	JM: Jun  10, 2017 : Save star centroids, if defined
+;	JM: Jun  11, 2017 : Changes in centroid calls.
+;	JM: Jun  23, 2017 : Handled case where centroids were not defined.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -49,8 +52,9 @@
 
 pro uv_or_vis, xoff_vis, yoff_vis, xoff_uv, yoff_uv, xoff_sc, yoff_sc, dqi
 
-	print,"n to change defaults."
+	print,"y to continue, otherwise change defaults."
 	ans = get_kbrd(1)
+	if (ans ne 'y')then ans = 'n'
 	if (ans eq 'n')then begin
 		print,"Do you want to use visible offsets; default is UV? :"
 		ans=get_kbrd(1)
@@ -237,7 +241,7 @@ pro jude_interactive, data_file, uv_base_dir, data_l2, grid, offsets, params = p
 ;Define bookkeeping variables
 	exit_success = 1
 	exit_failure = 0
-	version_date = "Dec. 25, 2016"
+	version_date = "Jun 11, 2017"
 	print,"Software version: ",version_date
 	
 ;If we have a window open keep it, otherwise pop up a default window
@@ -430,9 +434,11 @@ if (ans ne "d")then begin
 				p = params
 				xoff_cent = xoff_sc
 				yoff_cent = yoff_sc
-				jude_centroid, data_file, grid, p, xcent, ycent, /display,$
+				if (defaults eq 0)then display = 1 else display=0
+				jude_centroid, data_file, grid, p, xcent, ycent,$
 					nbin = nbin, xoff = xoff_cent, yoff = yoff_cent,$
-					/nosave, defaults = defaults, /new_star
+					/nosave, defaults = defaults, /new_star,$
+					max_im_value = max_im_value, display = display
 				xoff_sc = xoff_cent/params.resolution
 				yoff_sc = yoff_cent/params.resolution
 			endif
@@ -537,8 +543,12 @@ if (ans ne "d")then begin
 				sxaddpar, data_hdr0, "CALF", cal_factor, $
 						"Ergs cm-2 s-1 A-1 (cps)-1"
 
-				if (run_centroid eq 'y')then $
+				if ((run_centroid eq 'y') and $
+					(n_elements(xcent) gt 0) and (n_elements(ycent) gt 0))then begin
 					sxaddhist, "Centroiding run for s/c motion correction.", data_hdr0
+					sxaddpar,data_hdr0, "XCENT", xcent/params.resolution, "XPOS of centroid star"
+					sxaddpar,data_hdr0, "YCENT", ycent/params.resolution, "YPOS of centroid star"
+				endif
 
 				mwrfits,temp,t,data_hdr0,/create,/no_comment
 				if (n_elements(off_hdr) gt 0)then begin

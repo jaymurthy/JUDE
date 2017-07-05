@@ -15,6 +15,7 @@
 ;Modification history
 ;JM: Dec. 11, 2016: Changed scale when displaying data.
 ;JM: May  22, 2017: Version 3.1
+;JM: Jun. 27, 2017: Extra space in file spec.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -74,13 +75,19 @@ pro jude_uv_cleanup, fuv = fuv, nuv = nuv
 ;Merge files by getting rid of duplicate times.
 	JUDE_MERGE_FILES, obs_file_out, merge_files, uv_base_dir, params
 	files = file_search(uv_base_dir + params.temp_dir + "*", count = nfiles)
-	if (nfiles gt 0)then spawn,"gzip " + uv_base_dir + params.temp_dir + "*"
+
+	if (nfiles gt 0)then begin
+		cmd = "gzip -v " + uv_base_dir + params.temp_dir + "*"
+		spawn, cmd
+	endif
 
 ;Get rid of excess files. These are 0 length files or files with overlaps
 	spawn,"sh " + uv_base_dir + "rm_L2_files.sh"
-	tmp = file_search(uv_base_dir + params.temp_dir + "* ", count = nftmp)
-	if (nftmp gt 0) then $
-		spawn,"mv " + uv_base_dir + params.temp_dir + "* " + uv_base_dir + params.events_dir
+	tmp = file_search(uv_base_dir + params.temp_dir + "*", count = nftmp)
+	if (nftmp gt 0) then begin
+		cmd = "mv " + uv_base_dir + params.temp_dir + "* " + uv_base_dir + params.events_dir
+		spawn,cmd
+	endif
 
 if (file_test(uv_base_dir + params.temp_dir) gt 0)then $
 			spawn,"rmdir " + uv_base_dir + params.temp_dir

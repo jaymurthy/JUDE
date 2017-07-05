@@ -39,9 +39,9 @@ pro jude_obs_log, output_file, uv_base_dir, params
 	printf,obs_lun,"Level2 Source Filter OBSDATE TSTART TEND RA DEC Exp_Time IM_Exp"
 	for ifile = 0, nfiles - 1 do begin
 		print,ifile," of ",nfiles-1,string(13b),format="(i5,a,i5, a, $)"
-		
+
 ;Check to see if Level2 file exists
-		l2_file = files[ifile]
+		l2_file = files[ifile]		
 		data_l2 = mrdfits(l2_file,1,hdr,/silent)
 		im_name = file_basename(l2_file)
 		im_name = strmid(im_name, 0, strlen(im_name) - 12)

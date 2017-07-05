@@ -27,6 +27,7 @@
 ; MODIFICATION HISTORY:
 ;	JM: Dec. 11, 2016 : Driver program for VIS files
 ;	JM: May  23, 2017 : Version 3.1
+;	JM: Jun  29, 2017 : Added overwrite option.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -45,7 +46,7 @@
 
 pro jude_driver_vis, data_dir,$
 	start_file = start_file, end_file = end_file,$
-	debug = debug
+	debug = debug, overwrite = overwrite
 		
 
 ;Define bookkeeping variables
@@ -62,6 +63,7 @@ pro jude_driver_vis, data_dir,$
 		data_dir = ""
 		read,"Please enter root directory for UVIT data: ",data_dir
 	endif
+	if (keyword_set(overwrite) eq 0)then overwrite = 0
 
 	nfiles = jude_get_files(data_dir, file, /vis)
 	if (nfiles eq 0)then goto, done
@@ -74,23 +76,12 @@ pro jude_driver_vis, data_dir,$
 	params = jude_params()
 	params_save = params
 
-;Check existence of directories.
-;If the directory already exists, it will delete it (after confirmation)
-;If directories do not exist, they are created.
+;Check existence of directories. The default is to not overwrite files.
 ;The start_file option is only applicabe to jude_read_vis.
 ;All other programs read through the entire directory and
 ;process all files.
-	if (file_test(params.def_vis_dir))then begin
-		ans = ""
-		read,"Delete existing directory. OK? (y/n)",ans
-		if (ans eq 'y')then begin
+	if (file_test(params.def_vis_dir) and (overwrite ne 0))then $
 			spawn,"rm -rf " + params.def_vis_dir
-		endif else begin
-			ans = ""
-			read,"OK to overwrite files? ",ans
-			if (ans eq "y")then overwrite = 1 else overwrite = 0
-		endelse
-	endif else spawn,"mkdir " + params.def_vis_dir
 	if (file_test(params.def_vis_dir) eq 0)then $
 			spawn, "mkdir " + params.def_vis_dir
 
