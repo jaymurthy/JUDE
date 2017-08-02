@@ -33,7 +33,8 @@
 ;				spacecraft.
 ;	REF_FRAME:	Because of spacecraft motion, the frame chosen by the program
 ;				as the reference frame may not be optimal. This allows the
-;				frame to be changed to another frame number.
+;				frame to be changed to another frame number. Also used in
+;				marking which frame is used as the reference frame.
 ;	APPLY_DIST: We have derived a distortion matrix which may be applied to
 ;				every frame. I recommend that we apply distortion only to the
 ;				coadded image.
@@ -57,6 +58,7 @@
 ;JM: Apr. 10, 2017: Fixed problem with choice for ref frame.
 ;JM: May   1, 2017: Option to apply distortion coefficients.
 ;JM: May  22, 2017: Version 3.1
+;JM: Jul  27, 2017: Corrected reference frame.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -110,6 +112,8 @@ if (min_frame eq 0)then min_frame = $
 		(abs(yoff) lt 1000)))
 		
 if (n_elements(ref_frame) eq 0)then ref_frame = min_frame
+while (((abs(xoff[ref_frame]) gt 1000) or (abs(yoff[ref_frame]) gt 1000)) and $
+	   (ref_frame lt n_elements(data))) do ref_frame = ref_frame + 1
 if (max_frame eq 0) then max_frame =  n_elements(data)-1
 
 ;If the offsets are not defined, they are set to 0

@@ -51,6 +51,7 @@
 ;JM: Jun  10, 2017: Check to see if centroid stars are defined in header
 ;JM: Jun  10, 2017: Code cleanup and fixes
 ;JM: Jun  23, 2017: Corrected edge effect where the subarray was too small.
+;JM: Jul  24, 2017: Added option to not display array.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -161,6 +162,7 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 		ystar = sxpar(data_hdr0, "YCENT", count = nystar)
 		xstar = xstar*params.resolution
 		ystar = ystar*params.resolution
+		
 		if ((nxstar eq 0) or (nystar eq 0))then begin
 			x = 0
 			thresh = .0005
@@ -172,6 +174,7 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 			s = reverse(sort(flux))
 			xstar = x[s[0]]
 			ystar = y[s[0]]
+			
 		endif
 		ans = 'n'
 		while (ans eq 'n') do begin
@@ -186,8 +189,12 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 			tv,bytscl(rebin(h1,siz[1]*5, siz[2]*5), 0, max_im_value), 512, 0
 			print,"Width is ",a1[2], a1[3]
 			ans = 'y'
-			if (not(keyword_set(defaults)))then read,"Is this star ok? ", ans
-			if (ans ne 'n')then ans = 'y'
+			if (not(keyword_set(defaults)))then $
+				read,"Is this star ok (s for single frame)? ", ans
+			if (ans eq 'd')then begin
+				display = 0
+				ans = 'y'
+			endif
 			if (ans eq 'n')then begin
 				print,"Select star"
 				cursor,a,b,/dev
@@ -196,6 +203,31 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 				print,"boxsize is now: ", boxsize
 				read,"Enter new boxsize: ",boxsize 
 			endif
+			if (ans eq 's')then begin
+				par = params
+			endif
+			while (ans eq 's')do begin
+				g2 = grid2*0
+				while (max(g2) eq 0)do begin
+					par.min_frame = par.min_frame + par.fine_bin
+					par.max_frame = par.min_frame + par.fine_bin
+					print,par.min_frame,string(13b),format="(i6,a,$)"
+					nframes = jude_add_frames(data_l2, g2, pixel_time,  par, $
+						xoff*params.resolution, $
+						yoff*params.resolution, /notime)
+				endwhile
+				tv,bytscl(rebin(g2,512,512),0,max_im_value)
+				read, "Is this frame ok? ", ans
+				if (ans eq 'y')then begin
+					print,"Select star"
+					cursor,a,b,/dev
+					xstar = a*params.resolution
+					ystar = b*params.resolution
+					print,"boxsize is now: ", boxsize
+					read,"Enter new boxsize: ",boxsize
+					ans = 'n'
+				endif else ans = 's'
+			endwhile
 		endwhile
 		q = where(finite(a1) eq 0, nq)
 		if ((xstar eq 0) or (nq gt 0)) then begin
@@ -298,7 +330,8 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 	params.max_frame = ndata_l2 - 1
 	nframes = jude_add_frames(data_l2, grid2, pixel_time,  params, $
 				xoff, yoff, /notime)
-	if (display eq 1)then tv,bytscl(rebin(grid2,512,512),0,max_im_value)
+	if ((display eq 1) and (max(grid2) gt 0))then $
+			tv,bytscl(rebin(grid2,512,512),0,max_im_value)
 		h1 = set_limits(grid2, xstar_first, ystar_first, boxsize, params.resolution)
 		r1 = mpfit2dpeak(h1, a1)
 		siz = size(h1, /dimensions)
@@ -314,7 +347,7 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 		sxaddpar,data_hdr0, "XCENT", xstar_first/params.resolution, "XPOS of centroid star"
 		sxaddpar,data_hdr0, "YCENT", ystar_first/params.resolution, "YPOS of centroid star"
 		temp_file = strmid(events_file,0,strlen(events_file)-3)
-		print,"writing image file to ", temp_file
+		print,"writing events file to ", temp_file
 		mwrfits,data_l2,temp_file,data_hdr0,/create,/no_comment	
 		mwrfits,offsets,temp_file,off_hdr,/no_comment
 

@@ -37,6 +37,7 @@
 ;	JM: Aug 10, 2016: Integer overflow.
 ;	JM: Aug 21, 2016: Add filter information to files.
 ;	JM: May 23, 2017: Version 3.1
+;	JM: Jul 21, 2017: Added RA and DEC to Level 2 data format.
 ; COPYRIGHT:
 ;Copyright 2016 Jayant Murthy
 ;
@@ -91,6 +92,8 @@ function jude_get_xy,data_l1, data_l1a, data_l2, out_hdr
 						nevents:0,  		$	;Number of events in the frame
 						x:fltarr(nevents),  $	;X position
 						y:fltarr(nevents),  $	;Y position
+						ra:fltarr(nevents), $   ;RA of every event
+						dec:fltarr(nevents),$	;Dec of every event
 						mc:intarr(nevents), $	;minimum value in centroid
 						dm:intarr(nevents), $	;maximum value in centroid
 						time: 0d, 			$	;Time from L1 file

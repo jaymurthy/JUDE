@@ -34,6 +34,8 @@
 ;	JM: Jun  10, 2017 : Save star centroids, if defined
 ;	JM: Jun  11, 2017 : Changes in centroid calls.
 ;	JM: Jun  23, 2017 : Handled case where centroids were not defined.
+;	JM: Jul  21, 2017 : Was writing centroids wrong.
+;	JM: Jul  27, 2017 : Add reference frame to files for astrometry
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -216,6 +218,12 @@ pro plot_diagnostics, data_l2, offsets, data_hdr0, im_hdr, fname, grid, $
 	if (nq gt 1)then oplot,offsets[q].time - data_l2[0].time, yoff_vis[q], $
 		col=65535,psym=3,symsize=3
 
+;What is the time per frame?
+	ndata = n_elements(data)
+	dtimes = (data_l2[1:ndata-1].time - data_l2[0:ndata-2].time)
+	h=histogram(dtimes,min=0,bin=.00001,max=.1)
+	dtime = where(h eq max(h))*.00001
+
 ;Print diagnostics 
 	l2_tstart = data_l2[0].time
 	ndata_l2 = n_elements(data_l2)
@@ -223,10 +231,11 @@ pro plot_diagnostics, data_l2, offsets, data_hdr0, im_hdr, fname, grid, $
 	diff = l2_tend - l2_tstart
 	if (n_elements(im_hdr) gt 0) then exp_time = sxpar(im_hdr, "exp_time") $
 		else exp_time = 0
+	good = where(data_l2.dqi eq 0, ngood)
+	
 	str = fname
-	str = str + " " + string(long(l2_tstart))
-	str = str + " " + string(long(l2_tend))
 	str = str + " " + string(long(diff))
+	str = str + " " + string(ngood * dtime)
 	str = str + " " + string(long(exp_time)) 
 	str = str + string(mode)
 	str = str + " " + string(fix(total(grid)))
@@ -298,27 +307,34 @@ pro jude_interactive, data_file, uv_base_dir, data_l2, grid, offsets, params = p
 		events_dir  = uv_base_dir + params.events_dir
 		png_dir     = uv_base_dir + params.png_dir
 		image_file  = image_dir   + fname + ".fits.gz"
-		
-		
+
 ;Read the VIS offsets if they exist. If they don't exist, set up a 
 ;dummy array and header.
-		offsets = mrdfits(data_file, 2, off_hdr)
+		offsets = mrdfits(data_file, 2, off_hdr, /silent)
 		if (n_elements(offsets) le 1)then begin
 			offsets = replicate({offsets, time:0d, xoff:0., yoff:0., att:0}, ndata_l2)
 			offsets.time = data_l2.time
 			offsets.att  = 1
 			fxbhmake,off_hdr,ndata_l2,/initialize
 			sxaddhist,"No offsets from visible",off_hdr, /comment
+			print,"No visible offsets available."
 		endif
 		detector = strcompress(sxpar(data_hdr0,"detector"), /remove)
 		calc_uv_offsets, offsets, xoff_vis, yoff_vis, detector
 		xoff_uv = data_l2.xoff
 		yoff_uv = data_l2.yoff
 
-;Create image
-		nframes = jude_add_frames(data_l2, grid, pixel_time,  params, $
+;Does the image exist
+		if (file_test(image_file) gt 0)then begin
+			print,"Reading image from file."
+			grid = mrdfits(image_file, 0, im_hdr)
+			if (strcompress(sxpar(im_hdr, "ASTRDONE"), /rem) eq "TRUE") then $
+				print,"Astrometry done."
+		endif else begin
+			nframes = jude_add_frames(data_l2, grid, pixel_time,  params, $
 				xoff_uv*params.resolution, yoff_uv*params.resolution,$
 				/notime)
+		endelse
 
 check_diag:
 ;Plot the image plus useful diagnostics
@@ -427,6 +443,7 @@ if (ans ne "d")then begin
 ;****************************** CENTROIDING ***************************
 
 			if (run_centroid eq 'y')then begin
+print,"Starting centroid"
 				nbin = params.fine_bin
 				if (strupcase(detector) eq "FUV")then $
 					thg1 = params.ps_threshold_fuv else $
@@ -476,7 +493,8 @@ if (ans ne "d")then begin
 ;Until getting the time issues sorted out I will leave this as no time calculation.
 				data_l2.dqi = dqi
 				nframes = jude_add_frames(data_l2, grid, pixel_time,  params, $
-				xoff_sc*params.resolution, yoff_sc*params.resolution, /notime)
+				xoff_sc*params.resolution, yoff_sc*params.resolution, /notime,$
+				ref_frame = ref_frame)
 
 ;File definitions
 				fname = file_basename(data_file)
@@ -518,6 +536,7 @@ if (ans ne "d")then begin
 				sxaddpar,out_hdr,"MAXEVENT",params.max_counts,"Counts per frame"
 				sxaddpar, out_hdr,"MINFRAME", params.min_frame,"Starting frame"
 				sxaddpar, out_hdr,"MAXFRAME", params.max_frame,"Ending frame"
+				sxaddpar, out_hdr, "REFFRAME", ref_frame, "Reference frame."
 				sxaddhist,"Times are in Extension 1", out_hdr, /comment
 				if (run_centroid eq 'y')then $
 					sxaddhist, "Centroiding run on image.", out_hdr
@@ -540,14 +559,15 @@ if (ans ne "d")then begin
 						"Recommended starting frame"
 				sxaddpar, data_hdr0,"MAXFRAME", params.max_frame,$
 						"Recommended ending frame"
+				sxaddpar, data_hdr0, "REFFRAME", ref_frame, "Reference frame."
 				sxaddpar, data_hdr0, "CALF", cal_factor, $
 						"Ergs cm-2 s-1 A-1 (cps)-1"
 
 				if ((run_centroid eq 'y') and $
 					(n_elements(xcent) gt 0) and (n_elements(ycent) gt 0))then begin
 					sxaddhist, "Centroiding run for s/c motion correction.", data_hdr0
-					sxaddpar,data_hdr0, "XCENT", xcent/params.resolution, "XPOS of centroid star"
-					sxaddpar,data_hdr0, "YCENT", ycent/params.resolution, "YPOS of centroid star"
+					sxaddpar,data_hdr0, "XCENT", xcent, "XPOS of centroid star"
+					sxaddpar,data_hdr0, "YCENT", ycent, "YPOS of centroid star"
 				endif
 
 				mwrfits,temp,t,data_hdr0,/create,/no_comment

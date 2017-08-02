@@ -80,6 +80,7 @@
 ;	JM: Dec. 11, 2016 : Cleaning up
 ;	JM: May  23, 2017 : Version 3.1
 ;	JM: Jun  27, 2017 : Added overwrite option
+;	JM: Jul  27, 2017 : Add reference frame to files for astrometry
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -372,10 +373,10 @@ endif
 ;The notimes is much faster
 	if (keyword_set(notime))then begin
 		nframes = JUDE_ADD_FRAMES(data_l2, grid, pixel_time,  par, $
-					xoff, yoff, /notime)
+					xoff, yoff, ref_frame = ref_frame, /notime)
 	endif else begin
 		nframes = JUDE_ADD_FRAMES(data_l2, grid, pixel_time,  par, $
-					xoff, yoff)
+					xoff, yoff, ref_frame = ref_frame)
 	endelse
 	
 ;Write PNG file
@@ -405,6 +406,10 @@ endif
 ;Starting and ending frames for image production
 	sxaddpar, out_hdr,"MINFRAME", params.min_frame,"Starting frame"
 	sxaddpar, out_hdr,"MAXFRAME", params.max_frame,"Ending frame"	
+	sxaddpar, out_hdr, "REFFRAME", ref_frame, "Reference frame."
+	sxaddpar, bout_hdr,"MINFRAME", params.min_frame,"Starting frame"
+	sxaddpar, bout_hdr,"MAXFRAME", params.max_frame,"Ending frame"	
+	sxaddpar, bout_hdr, "REFFRAME", ref_frame, "Reference frame."
 
 ;Calibration factor
 	cal_factor = jude_apply_cal(detector, nom_filter)
