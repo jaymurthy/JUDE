@@ -2,15 +2,16 @@
 ; NAME:			JUDE_APPLY_ASTROMETRY
 ; PURPOSE:		Puts astrometry information from image into photon list
 ; CALLING SEQUENCE:
-;				jude_apply_astrometry, l2_file, params, iamge_dir = image_dir, $
-;										image_file = image_file
+;				jude_apply_astrometry, l2_file, params, data_dir = data_dir,$
+;										new = new 
 ; INPUTS:
 ;				l2_file:	Events list from Level 2 data
 ; OPTIONAL INPUTS:
 ;				Params:		parameters for pipeline operation
 ; OPTIONAL KEYWORDS:
-;				Image_dir: Directory in which to look for image files.
+;				Data_dir:   Top level directory for data file.
 ;				Image_file: If image file has a different name than expected
+;				New:		If set, force astrometry to be done.
 ; OUTPUTS:
 ;	RESTRICTIONS:
 ;	none
@@ -21,6 +22,7 @@
 ;
 ;Modification history
 ;JM: July 21, 2017
+;JM: Aug. 08, 2017: Added ref_frame explicitly.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -100,6 +102,7 @@ pro jude_apply_astrometry, l2_file, params, data_dir = data_dir, new = new
 ;y which is dependent on the image details
 	min_frame  = sxpar(hdr_im, "MINFRAME")
 	max_frame  = sxpar(hdr_im, "MAXFRAME")
+
 	xoff   = data_l2.xoff * params.resolution
 	yoff   = data_l2.yoff * params.resolution
 
@@ -110,8 +113,10 @@ pro jude_apply_astrometry, l2_file, params, data_dir = data_dir, new = new
 
 	if (max_frame eq 0)then $
 		max_frame  = params.max_frame < (n_elements(data_l2)-1)
-;This is the reference name forr the x and y offsets.
-	ref_frame = min_frame
+;This is the reference name for the x and y offsets.
+	ref_frame = sxpar(hdr_im, "REFFRAME")
+	if (ref_frame eq 0)then $
+		ref_frame = min_frame
 
 ;Read astrometric data from image file
 	extast,hdr_im, astr

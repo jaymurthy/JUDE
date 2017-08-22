@@ -34,6 +34,7 @@ function jude_cnvt_att_xy, data, hdr, xoff, yoff, params = params
 ;		JM: Aug. 30, 2016: Major error in which I was resetting dqi.
 ;		JM: May  23, 2017: Version 3.1
 ;		JM: Jul.  3, 2017: Changed loop from integer to long
+;		JM: Aug. 17, 2017: In cases, xoff and yoff were passed as integers not arrays.
 ; COPYRIGHT:
 ;Copyright 2016 Jayant Murthy
 ;
@@ -110,6 +111,7 @@ START_PROGRAM:
 			(par.min_frame lt (n_elems - 2*bin)))do begin
 		par.min_frame = par.max_frame
 		par.max_frame = par.min_frame + bin
+
 		nframes = jude_add_frames(data, g1, pixel_time, par, /notime)
 ;Check to see that there are no major breaks in the time
 		start_frame = par.min_frame
@@ -212,8 +214,8 @@ START_PROGRAM:
 		ddx(1:*) = dx(1:n_elems - 1) - dx(0:n_elems - 2)
 		ddy(1:*) = dy(1:n_elems - 1) - dy(0:n_elems - 2)	
 	endif else begin
-		xoff = 0
-		yoff = 0
+		xoff = fltarr(n_elems)
+		yoff = fltarr(n_elems)
 		jude_err_process,"errors.txt","No registration done"
 	endelse
 

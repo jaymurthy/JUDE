@@ -4,7 +4,7 @@
 ; CALLING SEQUENCE:
 ;				jude_centroid, events_file, grid2, params, xstar, ystar, $
 ;				xoff = xoff, yoff = yoff ,$
-;				nbin = nbin, boxsize = boxsize,$
+;				boxsize = boxsize,$
 ;				init_size = init_size, medsiz = medsiz, $
 ;				test = test, cent_file = cent_file, display = display, $
 ;				nosave = nosave, defaults = defaults, new_star = new_star
@@ -20,15 +20,12 @@
 ; KEYWORDS:
 ;	Xoff:			If the spacecraft offsets are known, they are applied to
 ;	Yoff:			the data; if not, they are calculated and passed back
-;	Nbin:			The number of frames over which the frames are coadded.
-;					The best accuracy will be for teh lowest Nbin over which 
-;					there are enough counts to detect the star.
 ;	Boxsize:		The search box size for the star. If there is significant
 ;					spacecraft motion, boxsize may have to be larger.
 ;	Init_size:		The initisal search box for a centroid in case the selection
 ;					is poor.
 ;	Medsize:		I filter out noise using a median filter of Medsize.
-;	Test:			Stops every frame to check the centroiding
+;	Test:			Stops every N frame to check the centroiding
 ;	Cent_file:			Writes a file containing centroids and fluxes.
 ;	Defaults:		If set, goes through without asking any questions
 ;	Display:		If set, each frame is displayed.
@@ -52,6 +49,9 @@
 ;JM: Jun  10, 2017: Code cleanup and fixes
 ;JM: Jun  23, 2017: Corrected edge effect where the subarray was too small.
 ;JM: Jul  24, 2017: Added option to not display array.
+;JM: Aug. 02, 2017: Explicitly print number of frames.
+;JM: Aug. 03, 2017: Added option to quit.
+;JM: Aug. 11, 2017: Nbin is redundant (params.fine_bin) so removed the option
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -94,7 +94,7 @@ end
 
 pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 				xoff = xoff, yoff = yoff ,$
-				nbin = nbin, boxsize = boxsize,$
+				boxsize = boxsize,$
 				medsiz = medsiz, $
 				test = test, cent_file = cent_file, display = display, $
 				nosave = nosave, defaults = defaults, new_star = new_star,$
@@ -104,9 +104,10 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 ;better able to centroid.
 
 ;***********************     INITIALIZATION   **************************
+	if (n_elements(params) eq 0)then params = jude_params()
 ;NBIN should be large enough that there is enough signal and small enough
 ;that it reflects the s/c motion
-	if (n_elements(nbin) eq 0)then nbin = 10
+	nbin = params.fine_bin
 ;BOXSIZE is the area around each point source. It should be more than the
 ;maximum mostion of the s/c in that duration
 	if (n_elements(boxsize) eq 0)then boxsize = 6 
@@ -129,7 +130,6 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 	detector  = strcompress(sxpar(data_hdr0, 'DETECTOR'),/remove)
 
 ;Set and Check parameters
-	if (n_elements(params) eq 0)then params = jude_params()
 	if (params.max_counts eq 0)then begin
 		q = where(data_l2.dqi eq 0, nq)
 		if (nq gt 10)then begin
@@ -179,22 +179,26 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 		ans = 'n'
 		while (ans eq 'n') do begin
 			tv,bytscl(rebin(grid2,512,512),0,max_im_value)
-			plots,/dev,xstar/params.resolution,ystar/params.resolution,psym=4,col=255,thick=2
-			h1 = set_limits(grid2, xstar, ystar, boxsize, params.resolution)
+			plots,/dev,xstar/params.resolution,ystar/params.resolution,$
+					psym=4,col=255,thick=2
+			h1 = set_limits(grid2, xstar, ystar, boxsize, params.resolution,$
+							xmin = xmin, ymin = ymin)
 			r1 = mpfit2dpeak(h1, a1)
-			xstar = xstar + (a1[4] - boxsize*params.resolution)
-			ystar = ystar + (a1[5] - boxsize*params.resolution)
-			h1 = set_limits(grid2, xstar, ystar, boxsize, params.resolution)
+			xstar = xmin + a1[4]
+			ystar = ymin + a1[5]
+			h1 = set_limits(grid2, xstar, ystar, boxsize, params.resolution, $
+							xmin = xmin, ymin = ymin)
 			siz = size(h1)
 			tv,bytscl(rebin(h1,siz[1]*5, siz[2]*5), 0, max_im_value), 512, 0
 			print,"Width is ",a1[2], a1[3]
 			ans = 'y'
 			if (not(keyword_set(defaults)))then $
-				read,"Is this star ok (s for single frame)? ", ans
+				read,"Is this star ok (s for single frame; q to quit)? ", ans
 			if (ans eq 'd')then begin
 				display = 0
 				ans = 'y'
 			endif
+			if (ans eq 'q')then goto,noproc
 			if (ans eq 'n')then begin
 				print,"Select star"
 				cursor,a,b,/dev
@@ -292,10 +296,27 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 			endif
 			if ((n_elements(cent_file) gt 0) and (xcent[i] gt -1e6))then $
 				printf,write_lun, params.min_frame, $
-					xcent[i],ycent[i],tcent,sqrt(tcent)/sqrt(float(nframes))
+					xcent[i],ycent[i],tcent,sqrt(tcent)/sqrt(float(nframes)), $
+					nframes
 		endif else if (ndqi gt 3)then nlost = nlost + 1
 		if ((ntest ge test) and (ndqi gt 3))then begin
-			ntest = 0
+			ans = get_kbrd(1)
+			if (ans eq 's')then begin
+				tv,bytscl(rebin(grid2,512,512),0,max_im_value)
+				plots,/dev,xcent[i]/params.resolution,ycent[i]/params.resolution,$
+					/psym,symsize=3,col=255
+				print,"Is this frame ok to reeselect star?"
+				ans = get_kbrd(1)
+				if (ans eq 'y')then begin
+					print,"Select star"
+					cursor, a,b,/dev
+					xcent[i] = a*params.resolution
+					ycent[i] = b*params.resolution
+					xstar = xcent[i]
+					ystar = ycent[i]
+					ntest = 0
+				endif else if (ans eq 'q')then stop
+			endif else ntest = 0
 		endif else ntest = ntest + 1
 	endfor
 
@@ -350,7 +371,8 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 		print,"writing events file to ", temp_file
 		mwrfits,data_l2,temp_file,data_hdr0,/create,/no_comment	
 		mwrfits,offsets,temp_file,off_hdr,/no_comment
-
+		spawn,"gzip -fv " + temp_file
+		
 ;Lets find the NUV image file
 		fname = file_basename(events_file)
 		f1 = strpos(fname, "level1")
@@ -385,6 +407,7 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 		print,"writing image file to ",t
 		mwrfits,grid2,t,out_hdr,/create
 		mwrfits,pixel_time,t
+		spawn,"gzip -fv " + t
 	endif	
 noproc:
 	if (n_elements(cent_file) gt 0)then free_lun,write_lun

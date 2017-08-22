@@ -59,6 +59,8 @@
 ;JM: May   1, 2017: Option to apply distortion coefficients.
 ;JM: May  22, 2017: Version 3.1
 ;JM: Jul  27, 2017: Corrected reference frame.
+;JM: Aug. 12, 2017: Modified time addition to be faster (but still slow).
+;JM: Aug. 18, 2017: Corrected crash if xoff or yoff are not passed through
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -96,6 +98,10 @@ endif else begin
 			par.max_counts = dave + dstd*3
 		endif else par.max_counts = 1000
 	endif
+	
+;If xoff and yoff are not in the parameter list, I create them
+	if (n_elements(xoff) eq 0)then xoff = data.xoff*par.resolution
+	if (n_elements(yoff) eq 0)then yoff = data.yoff*par.resolution
 
 ;User defined parameters. These elements have to exist in the structure.
 	min_counts = par.min_counts
@@ -113,7 +119,7 @@ if (min_frame eq 0)then min_frame = $
 		
 if (n_elements(ref_frame) eq 0)then ref_frame = min_frame
 while (((abs(xoff[ref_frame]) gt 1000) or (abs(yoff[ref_frame]) gt 1000)) and $
-	   (ref_frame lt n_elements(data))) do ref_frame = ref_frame + 1
+	   (ref_frame lt (n_elements(data) - 2))) do ref_frame = ref_frame + 1
 if (max_frame eq 0) then max_frame =  n_elements(data)-1
 
 ;If the offsets are not defined, they are set to 0
@@ -167,14 +173,24 @@ if (apply_dist ne 0) then begin
 endif
 
 ;Initialization
-ntime = 0.
+ntime  = 0.
 nframe = 0.
+dtime  = 0
 xoff_start = xoff[ref_frame]
 yoff_start = yoff[ref_frame]
 
+times = fltarr(gxsize, gysize)
+dst = (gx - (256*resolution))^2 + $
+	  (gy - (256*resolution))^2
+q = where(dst lt g_rad^2, nq)
+times[q] = 1
+
+tstart = systime(1)
 for ielem = min_frame,max_frame do begin
-if (not(keyword_set(notime))) then $
-	print,ielem, max_frame,string(13b),format="(i7,i7,a,$)"
+if (not(keyword_set(notime)) and ((ielem mod 100) eq 0)) then begin
+	tleft = (systime(1) - tstart)/(ielem - min_frame)*(max_frame - ielem)
+	print,ielem, max_frame,tleft,string(13b),format="(i7,i7,i7,a,$)"
+endif
 
 ;Only if frame meets all the conditions
 	if ((data(ielem).nevents gt min_counts) and $
@@ -183,6 +199,9 @@ if (not(keyword_set(notime))) then $
 		(abs(yoff[ielem]) lt 1000) and $
 		(data(ielem).dqi le dqi_value))then begin
 
+;Time interval
+			dtime = dtime + ((data[(ielem + 1) < (nelems - 1)].time) - data[ielem].time)
+
 ;Find events and convert them into indices in the grid
 ;This is where I would include the flat field
 		q = where(data(ielem).x gt 0,nq)
@@ -190,7 +209,7 @@ if (not(keyword_set(notime))) then $
 		y = round(data(ielem).y(q)*resolution + yoff(ielem)) - yoff_start
 		x = 0 > x < (gxsize - 1)
 		y = 0 > y < (gysize - 1)
-		for i=0, nq -1 do begin
+		for i = 0, nq -1 do begin
 			grid[x(i),y(i)] 	= grid[x(i),y(i)] + 1
 		endfor
 		nframe = nframe + 1
@@ -206,17 +225,21 @@ if (not(keyword_set(notime))) then $
 ;pixels (modified by the resolution) of the centre. This may have to be refined.
 ;Note that I don't do this time consuming step if notime is set.
 		if (not(keyword_set(notime))) then begin
-			dst = (gx - (256*resolution + fix(xoff[ielem])))^2 + $
-				  (gy - (256*resolution + fix(yoff[ielem])))^2
-			q = where(dst lt g_rad^2, nq)
-			dtime = data[(ielem + 1) < (nelems - 1)].time - data[ielem].time
-			if (nq gt 0)then pixel_time(q) = pixel_time(q) + dtime
+			tmp =shift(times, round(xoff[ielem]), round(yoff[ielem]))
+			xindex = round(xoff[ielem])
+			yindex = round(yoff[ielem])
+			if (xindex gt 0)then tmp[0:xindex-1,*] = 0
+			if (xindex lt 0)then tmp[gxsize + xindex:gxsize - 1, *] = 0
+			if (yindex gt 0)then tmp[*, 0:yindex-1] = 0
+			if (yindex lt 0)then tmp[*, gysize + yindex:gxsize - 1] = 0
+			pixel_time = pixel_time + tmp
 		endif
 	endif
 endfor
 
 ;Put grid into units of either counts per pixel per frame or counts per pixel per s.
 if (keyword_set(notime))then pixel_time = fltarr(gxsize, gysize) + nframe
+if (not(keyword_set(notime)))then pixel_time = pixel_time*dtime/nframe
 q = where(pixel_time gt 0, nq)
 if (nq gt 0)then grid(q) = grid(q)/pixel_time(q)
 return,nframe ;Return number of frames

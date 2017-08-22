@@ -8,7 +8,7 @@
 ;The next two lines are specific to the local setup. Set dname to the 
 ;location of the Level 1 files.
 spawn,"pwd",a
-dname = "/Volumes/UVIT/Level1" + strmid(a[0], 26)
+dname = "/Volumes/UVIT_Data/uvit/Level1" + strmid(a[0], 26)
 
 ;No changes need be made from here on.
 ;Process all the VIS files
@@ -25,3 +25,4 @@ spawn,"zip -rv nuv.zip nuv/*"
 ;Merge the data and run the automated registration. Should work in most cases.
 jude_uv_cleanup,/nuv
 jude_uv_cleanup,/fuv
+exit

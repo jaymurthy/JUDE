@@ -12,6 +12,7 @@
 ; MODIFICATION HISTORY
 ;	JM: Sept 8, 2016
 ;	JM: May 23, 2017 Version 3.1
+;	JM: Aug. 22, 2017: tstart and tend now include all data for consistency
 ; COPYRIGHT
 ;Copyright 2016 Jayant Murthy
 ;
@@ -48,8 +49,8 @@ pro jude_obs_log, output_file, uv_base_dir, params
 		im_name =  uv_base_dir + params.image_dir + im_name + ".fits.gz"
 		q = where(data_l2.dqi eq 0, nq)
 		if (nq gt 0)then begin
-			tstart = min(data_l2[q].time)
-			tend   = max(data_l2[q].time)
+			tstart = min(data_l2.time)
+			tend   = max(data_l2.time)
 ;What is the time per frame?
 			ndata = n_elements(data_l2)
 			dtimes = (data_l2[1:ndata-1].time - data_l2[0:ndata-2].time)

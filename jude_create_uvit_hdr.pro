@@ -13,6 +13,8 @@ pro jude_create_uvit_hdr, inp_hdr, out_hdr
 ;	JM: July 13, 2016
 ;	JM: Aug. 21, 2016: Stop writing so many comments
 ;	JM: May  23, 2017: Version 3.1
+;	JM: Aug. 11, 2017: Added BUNIT
+;	JM: Aug. 18, 2017: Added Observer
 ;-
 
 ;Add variables from input header
@@ -23,11 +25,13 @@ sxaddpar,out_hdr,"DATE-END",sxpar(inp_hdr, "DATE-END"),"End date for data"
 sxaddpar,out_hdr,"TIME-END",sxpar(inp_hdr, "TIME-END"),"End time for data"
 sxaddpar,out_hdr,"TIMESYS","UTC"
 sxaddpar,out_hdr,"TIMEUNIT","seconds"
+sxaddpar,out_hdr,"BUNIT","counts/pixel/s"
 sxaddpar,out_hdr,"RA_PNT",     sxpar(inp_hdr, "RA_PNT"),"Nominal pointing"
 sxaddpar,out_hdr,"DEC_PNT",     sxpar(inp_hdr, "DEC_PNT"),"Nominal pointing"
 sxaddpar,out_hdr,"Equinox",     sxpar(inp_hdr, "Equinox"),"J2000.0"
 sxaddpar,out_hdr,"DETECTOR", sxpar(inp_hdr, "DETECTOR"), "FUV, NUV, or Vis"
 sxaddpar,out_hdr,"SOURCEID", sxpar(inp_hdr, "SOURCEID"), "Source ID"
+sxaddpar,out_hdr,"OBSERVER", sxpar(inp_hdr, "OBSERVER"), "Observer"
 sxaddpar,out_hdr,"FILTER",   sxpar(inp_hdr, "FILTER"),"F0=closed, F1,F2..Fn(n=1-7 for FUV, NUV; n=1-5"
 get_date,dte
 sxaddpar,out_hdr,"DATE",dte,"File write date"

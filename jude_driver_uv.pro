@@ -81,6 +81,8 @@
 ;	JM: May  23, 2017 : Version 3.1
 ;	JM: Jun  27, 2017 : Added overwrite option
 ;	JM: Jul  27, 2017 : Add reference frame to files for astrometry
+;	JM: Aug. 14, 2017 : Added keyword to time frame.
+;	JM: Aug. 18, 2017 : No longer run jude_register by default.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -315,7 +317,10 @@ if (nq gt 0)then data_l2[q].dqi = 0
 			params.max_counts = dave + dstd*3
 		endif else params.max_counts = 1000
 	endif
-			
+do_not_do_this = 1
+if (do_not_do_this eq 0)then begin
+;The registration takes time and has largely been superceded so I don't do it 
+;by default. Note that there are occasional problems with SRCOR.
 ;*************************DATA REGISTRATION*******************************
 print,"Begininning Registration",string(13b),format="(a, a, $)"
 	if (keyword_set(fuv))then mask_threshold = params.ps_threshold_fuv else $
@@ -341,7 +346,7 @@ print,"Begininning Registration",string(13b),format="(a, a, $)"
 							xstage1 = xoff_sc, ystage1 = yoff_sc,	$
 							threshold = mask_threshold)
 	endelse
-
+endif
 ;*****************************FLAT FIELD******************************
 ;NOT YET IMPLEMENTED
 do_not_do_this = 1
@@ -429,7 +434,13 @@ endif
 
 ;Write out the image followed by the exposure times
 	mwrfits,grid,image_name,out_hdr,/create
-	mwrfits,pixel_time,image_name
+	mkhdr, thdr, pixel_time
+	if (keyword_set(notime))then begin
+		sxaddpar,thdr,"BUNIT","Number of frames","Exposure map not applied"
+	endif else begin
+		sxaddpar,thdr,"BUNIT","s","Exposure map"
+	endelse
+	mwrfits,pixel_time,image_name,thdr
 	spawn,"gzip -f " + image_name
 
 ;Observation log showing which file is associated with each original	

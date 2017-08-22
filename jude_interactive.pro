@@ -36,6 +36,10 @@
 ;	JM: Jun  23, 2017 : Handled case where centroids were not defined.
 ;	JM: Jul  21, 2017 : Was writing centroids wrong.
 ;	JM: Jul  27, 2017 : Add reference frame to files for astrometry
+;	JM: Aug. 10, 2017 : Default is to run with times; added keyword for notime
+;	JM: Aug. 11, 2017 : If defaults = 2 then I don't run centroiding or write events file.
+;	JM: Aug. 14, 2017 : Added keywords to time header
+;	JM: Aug. 16, 2017 : Modified defaults as per table below
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -51,6 +55,12 @@
 ;   limitations under the License.
 ;
 ;-
+
+;************************ Defaults *********************************
+;Defaults = 0: Normal interactive behavior. If defaults > 0, always noninteractive.
+;Defaults = 1: Run automatically with standard defaults.
+;Defaults = 2: Don't run centroid
+;Defaults = 4: Use VIS offsets.
 
 pro uv_or_vis, xoff_vis, yoff_vis, xoff_uv, yoff_uv, xoff_sc, yoff_sc, dqi
 
@@ -88,18 +98,19 @@ pro get_offsets, data_l2, offsets, xoff_vis, yoff_vis, xoff_uv, yoff_uv, $
 		frac_vis_att = 0
 	endelse
 
-;We use the VIS offsets by default
-	if ((vis_exist eq 1) and (frac_vis_att gt .5))then begin
+;We use the UV offsets by default except if use_vis is set
+	if ((vis_exist eq 1) and (frac_vis_att gt .5) and (uv_exist eq 0))then begin
 		print,"Will use visible offsets."
 		xoff_sc = xoff_vis
 		yoff_sc = yoff_vis
 ;We can't use those points where we have no VIS data
 		q = where(offsets.att ne 0, nq)
 		if (nq gt 0)then dqi[q] = 2
+		uv_exist = 0
 	endif else vis_exist = 0
 
 ;If there are no VIS offsets but there are UV offsets, we use them	
-	if ((vis_exist eq 0) and (uv_exist eq 1))then begin
+	if (uv_exist eq 1)then begin
 		print,"Will use UV offsets."
 		xoff_sc = xoff_uv
 		yoff_sc = yoff_uv
@@ -245,7 +256,8 @@ pro plot_diagnostics, data_l2, offsets, data_hdr0, im_hdr, fname, grid, $
 end
 
 pro jude_interactive, data_file, uv_base_dir, data_l2, grid, offsets, params = params, $
-					defaults = defaults, max_im_value = max_im_value
+					defaults = defaults, max_im_value = max_im_value, $
+					notimes = notimes, data_dir = data_dir
 
 ;Define bookkeeping variables
 	exit_success = 1
@@ -299,13 +311,14 @@ pro jude_interactive, data_file, uv_base_dir, data_l2, grid, offsets, params = p
 		params.max_counts = dave + dstd*5
 
 ;Name definitions
+		if (n_elements(data_dir) eq 0)then data_dir = ''
 		fname = file_basename(data_file)
 		f1 = strpos(fname, "level1")
 		f2 = strpos(fname, "_", f1+8)
 		fname = strmid(fname, 0, f2)
-		image_dir   = uv_base_dir + params.image_dir
-		events_dir  = uv_base_dir + params.events_dir
-		png_dir     = uv_base_dir + params.png_dir
+		image_dir   = data_dir + uv_base_dir + params.image_dir
+		events_dir  = data_dir + uv_base_dir + params.events_dir
+		png_dir     = data_dir + uv_base_dir + params.png_dir
 		image_file  = image_dir   + fname + ".fits.gz"
 
 ;Read the VIS offsets if they exist. If they don't exist, set up a 
@@ -341,7 +354,7 @@ check_diag:
 		plot_diagnostics, data_l2, offsets, data_hdr0, im_hdr, fname, grid, $
 					params, ymin, ymax
 					
-		if (keyword_set(defaults))then ans = 'n' else ans = "y"
+		if (defaults ne 0)then ans = 'n' else ans = "y"
 		while (ans eq "y") do begin
 			tv,bytscl(rebin(grid, 512, 512), 0, max_im_value)
 			print,"Redisplay?"
@@ -384,6 +397,12 @@ if (param_ans eq -3)then stop
 			if (defaults eq 0)then $
 				UV_OR_VIS, xoff_vis, yoff_vis, xoff_uv, yoff_uv, $
 					  xoff_sc, yoff_sc, dqi
+					  
+			if ((defaults and 4) eq 4)then begin
+				print,"Using VIS data"
+				xoff_sc = xoff_vis
+				yoff_sc = yoff_vis
+			endif
 		
 			run_centroid = 'y'
 			if (defaults eq 0)then begin
@@ -391,6 +410,7 @@ if (param_ans eq -3)then stop
 				run_centroid = get_kbrd(1)
 				if (run_centroid ne 'n')then run_centroid = 'y'
 			endif
+			if ((defaults and 2) eq 2)then run_centroid = 'n'
 
 			run_registration = 'n'
 			if ((defaults eq 0) and (run_centroid ne 'y'))then begin
@@ -453,7 +473,7 @@ print,"Starting centroid"
 				yoff_cent = yoff_sc
 				if (defaults eq 0)then display = 1 else display=0
 				jude_centroid, data_file, grid, p, xcent, ycent,$
-					nbin = nbin, xoff = xoff_cent, yoff = yoff_cent,$
+					xoff = xoff_cent, yoff = yoff_cent,$
 					/nosave, defaults = defaults, /new_star,$
 					max_im_value = max_im_value, display = display
 				xoff_sc = xoff_cent/params.resolution
@@ -490,11 +510,18 @@ print,"Starting centroid"
 				ans = get_kbrd(1)
 			endif else ans = "y"
 			if (ans eq "y")then begin
-;Until getting the time issues sorted out I will leave this as no time calculation.
+
 				data_l2.dqi = dqi
-				nframes = jude_add_frames(data_l2, grid, pixel_time,  params, $
-				xoff_sc*params.resolution, yoff_sc*params.resolution, /notime,$
-				ref_frame = ref_frame)
+				if (keyword_set(notimes)) then begin
+					nframes = jude_add_frames(data_l2, grid, pixel_time,  params, $
+					xoff_sc*params.resolution, yoff_sc*params.resolution, /notime,$
+					ref_frame = ref_frame)
+				endif else begin
+					nframes = jude_add_frames(data_l2, grid, pixel_time,  params, $
+					xoff_sc*params.resolution, yoff_sc*params.resolution, $
+					ref_frame = ref_frame)
+				
+				endelse
 
 ;File definitions
 				fname = file_basename(data_file)
@@ -510,7 +537,7 @@ print,"Starting centroid"
 				jude_create_uvit_hdr,data_hdr0,out_hdr
 
 ;Write PNG file
-				t = uv_base_dir + params.png_dir+fname+".png"
+				t = data_dir + uv_base_dir + params.png_dir+fname+".png"
 				write_png,t,tvrd()
 			
 ;Write FITS image file
@@ -541,19 +568,24 @@ print,"Starting centroid"
 				if (run_centroid eq 'y')then $
 					sxaddhist, "Centroiding run on image.", out_hdr
 				sxaddhist,fname,out_hdr
-				t = uv_base_dir + params.image_dir + imname + ".fits"
+				t = data_dir + uv_base_dir  + params.image_dir + imname + ".fits"
 				print,"writing image file to ",t
 				mwrfits,grid,t,out_hdr,/create
-				mwrfits,pixel_time,t
+				mkhdr, thdr, pixel_time
+				if (keyword_set(notime))then begin
+					sxaddpar,thdr,"BUNIT","Number of frames","Exposure map not applied"
+				endif else begin
+					sxaddpar,thdr,"BUNIT","s","Exposure map"
+				endelse
+				mwrfits,pixel_time,t,thdr
 				spawn,"gzip -fv " + t
 
 ;Write FITS events list
-				t = uv_base_dir + params.events_dir + fname + ".fits"
+				t = data_dir + uv_base_dir + params.events_dir + fname + ".fits"
 				temp = data_l2
 				temp.xoff = xoff_sc
 				temp.yoff = yoff_sc
 				temp.dqi = save_dqi
-				print,"writing events file to ",t
 ;We've looked and these are the parametes last used.
 				sxaddpar, data_hdr0,"MINFRAME", params.min_frame,$
 						"Recommended starting frame"
@@ -569,22 +601,26 @@ print,"Starting centroid"
 					sxaddpar,data_hdr0, "XCENT", xcent, "XPOS of centroid star"
 					sxaddpar,data_hdr0, "YCENT", ycent, "YPOS of centroid star"
 				endif
-
-				mwrfits,temp,t,data_hdr0,/create,/no_comment
-				if (n_elements(off_hdr) gt 0)then begin
-					mwrfits,offsets,t,off_hdr,/no_comment
-				endif else mwrfits,offsets,t
-				spawn,"gzip -fv " + t
-			endif
+				if (defaults le 10)then begin
+				print,"writing events file to ",t
+					mwrfits,temp,t,data_hdr0,/create,/no_comment
+					if (n_elements(off_hdr) gt 0)then begin
+						mwrfits,offsets,t,off_hdr,/no_comment
+					endif else mwrfits,offsets,t
+					spawn,"gzip -fv " + t
+				endif
+			endif ;End write files
 			if (defaults eq 0)then begin
 				ans = "n"
 				print,"Do you want to run with different parameters?"
 				ans=get_kbrd(1)
 			endif else ans = "n"
-			data_l2.xoff = xoff_sc
-			data_l2.yoff = yoff_sc
-			xoff_uv		 = xoff_sc
-			yoff_uv		 = yoff_sc
+			if (ans ne 'r')then begin
+				data_l2.xoff = xoff_sc
+				data_l2.yoff = yoff_sc
+				xoff_uv		 = xoff_sc
+				yoff_uv		 = yoff_sc
+			endif else if (ans eq 'r') then ans = 'y'
 			data_l2.dqi = save_dqi
 			if (ans eq "y")then goto, check_diag
 		endif

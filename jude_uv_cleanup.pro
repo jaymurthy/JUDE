@@ -16,6 +16,7 @@
 ;JM: Dec. 11, 2016: Changed scale when displaying data.
 ;JM: May  22, 2017: Version 3.1
 ;JM: Jun. 27, 2017: Extra space in file spec.
+;JM: Aug. 18, 2017: Runs with visible offfsets as default.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -104,7 +105,7 @@ if (file_test(uv_base_dir + params.temp_dir) gt 0)then $
 	
 	for ifile = 0, nfiles - 1 do $
 		JUDE_INTERACTIVE,files[ifile], uv_base_dir, data, grid, offsets, $
-			 params = params, /defaults
+			 params = params, defaults=4
 	spawn,"gzip -f " + uv_base_dir + params.events_dir + "/*.fits"
 	spawn,"gzip -f " + uv_base_dir + params.image_dir + "/*.fits"
 	obs_file_in  = uv_base_dir + "observation.csv"
