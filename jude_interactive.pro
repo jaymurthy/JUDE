@@ -40,6 +40,7 @@
 ;	JM: Aug. 11, 2017 : If defaults = 2 then I don't run centroiding or write events file.
 ;	JM: Aug. 14, 2017 : Added keywords to time header
 ;	JM: Aug. 16, 2017 : Modified defaults as per table below
+;	JM: Aug. 22, 2017 : Minor typo
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -230,14 +231,13 @@ pro plot_diagnostics, data_l2, offsets, data_hdr0, im_hdr, fname, grid, $
 		col=65535,psym=3,symsize=3
 
 ;What is the time per frame?
-	ndata = n_elements(data)
-	dtimes = (data_l2[1:ndata-1].time - data_l2[0:ndata-2].time)
+	ndata_l2 = n_elements(data_l2)
+	dtimes = (data_l2[1:ndata_l2 - 1].time - data_l2[0:ndata_l2 - 2].time)
 	h=histogram(dtimes,min=0,bin=.00001,max=.1)
 	dtime = where(h eq max(h))*.00001
 
 ;Print diagnostics 
 	l2_tstart = data_l2[0].time
-	ndata_l2 = n_elements(data_l2)
 	l2_tend   = data_l2[ndata_l2 - 1].time
 	diff = l2_tend - l2_tstart
 	if (n_elements(im_hdr) gt 0) then exp_time = sxpar(im_hdr, "exp_time") $
