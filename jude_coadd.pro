@@ -10,7 +10,7 @@
 ;				out_file:	FITS image file
 ; OPTIONAL INPUTS:
 ;				ra_cent:	Central RA in degrees
-;				dec_Cent:	Central Dec in degrees
+;				dec_cent:	Central Dec in degrees
 ;				Fov:		Field of view in degrees
 ;				pixel_size:	Size of each pixel in degrees
 ; OPTIONAL KEYWORDS:

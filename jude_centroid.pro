@@ -52,6 +52,7 @@
 ;JM: Aug. 02, 2017: Explicitly print number of frames.
 ;JM: Aug. 03, 2017: Added option to quit.
 ;JM: Aug. 11, 2017: Nbin is redundant (params.fine_bin) so removed the option
+;JM: Aug. 21, 2017: Fixed an inconsistency in passing offsets
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -327,7 +328,7 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 	if (nq gt 3)then begin
 		quadterp,xindex[q],xcent[q]-xcent[q[0]],findgen(ndata_l2),xoff,missing=-1e6
 		quadterp,xindex[q],ycent[q]-ycent[q[0]],findgen(ndata_l2),yoff,missing=-1e6
-		qmiss = where((xoff gt -1e6) and (yoff gt -1e6),nmiss)
+		qmiss = where((xoff gt -1e6) or (yoff gt -1e6),nmiss)
 
 		if (nmiss gt 0) then begin
 			xoff[qmiss] = -xoff[qmiss]
@@ -359,10 +360,19 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 		tv,bytscl(rebin(h1, siz[0]*4,siz[1]*4),0,max_im_value),512,0
 		print,"New width is ",a1[2],a1[3]
 
+;Update offsets
+		qbad = where((xoff le -1e6) or (yoff le -1e6),nqbad)
+		xoff = xoff/params.resolution
+		yoff = yoff/params.resolution
+		if (nqbad gt 0)then begin
+			xoff[qbad] = -1e6
+			yoff[qbad] = -1e6
+		endif
+		data_l2.xoff = xoff
+		data_l2.yoff = yoff
+
 	if (not(keyword_set(nosave)))then begin
 ;Update original events file
-		data_l2.xoff = xoff/params.resolution
-		data_l2.yoff = yoff/params.resolution
 		offsets=mrdfits(events_file,2,off_hdr)
 		sxaddhist,"jude_centroid has been run",data_hdr0
 		sxaddpar,data_hdr0, "XCENT", xstar_first/params.resolution, "XPOS of centroid star"

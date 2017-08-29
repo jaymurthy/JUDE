@@ -83,6 +83,9 @@
 ;	JM: Jul  27, 2017 : Add reference frame to files for astrometry
 ;	JM: Aug. 14, 2017 : Added keyword to time frame.
 ;	JM: Aug. 18, 2017 : No longer run jude_register by default.
+;	JM: Aug. 21, 2017 : Changed "Number of frames" to Nframes
+;	JM: Aug. 27, 2017 : Problem with ref_frame due to repeated calls.
+;	JM: Aug. 28, 2017 : Was writing header improperly for second extension
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -375,6 +378,7 @@ endif
 	xoff = data_l2.xoff
 	yoff = data_l2.yoff
 	par = params
+	ref_frame = -1
 ;The notimes is much faster
 	if (keyword_set(notime))then begin
 		nframes = JUDE_ADD_FRAMES(data_l2, grid, pixel_time,  par, $
@@ -434,9 +438,9 @@ endif
 
 ;Write out the image followed by the exposure times
 	mwrfits,grid,image_name,out_hdr,/create
-	mkhdr, thdr, pixel_time
+	mkhdr, thdr, pixel_time,/image
 	if (keyword_set(notime))then begin
-		sxaddpar,thdr,"BUNIT","Number of frames","Exposure map not applied"
+		sxaddpar,thdr,"BUNIT","Nframes","Exposure map not applied"
 	endif else begin
 		sxaddpar,thdr,"BUNIT","s","Exposure map"
 	endelse

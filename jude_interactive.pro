@@ -40,7 +40,9 @@
 ;	JM: Aug. 11, 2017 : If defaults = 2 then I don't run centroiding or write events file.
 ;	JM: Aug. 14, 2017 : Added keywords to time header
 ;	JM: Aug. 16, 2017 : Modified defaults as per table below
-;	JM: Aug. 22, 2017 : Minor typo
+;	JM: Aug. 21, 2017 : Minor typo
+;	JM: Aug. 21, 2017 : Problem in offsets if centroid was quit
+;	JM: Aug. 28, 2017 : Was writing header incorrectly for second extension.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -476,8 +478,8 @@ print,"Starting centroid"
 					xoff = xoff_cent, yoff = yoff_cent,$
 					/nosave, defaults = defaults, /new_star,$
 					max_im_value = max_im_value, display = display
-				xoff_sc = xoff_cent/params.resolution
-				yoff_sc = yoff_cent/params.resolution
+				xoff_sc = xoff_cent
+				yoff_sc = yoff_cent
 			endif
 			
 ;Final image production
@@ -571,9 +573,9 @@ print,"Starting centroid"
 				t = data_dir + uv_base_dir  + params.image_dir + imname + ".fits"
 				print,"writing image file to ",t
 				mwrfits,grid,t,out_hdr,/create
-				mkhdr, thdr, pixel_time
+				mkhdr, thdr, pixel_time, /image
 				if (keyword_set(notime))then begin
-					sxaddpar,thdr,"BUNIT","Number of frames","Exposure map not applied"
+					sxaddpar,thdr,"BUNIT","Ns","Exposure map not applied"
 				endif else begin
 					sxaddpar,thdr,"BUNIT","s","Exposure map"
 				endelse
