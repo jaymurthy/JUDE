@@ -57,7 +57,7 @@ pro jude_call_astrometry, inp_dir, out_dir, min_exp_time = min_exp_time, $
 			if (keyword_set(fuv))then $
 				str = "solve-field --backend-config /Volumes/UVIT_Data/astrometric/astrometry.cfg"
 			str =  str + " --downsample 4 --scale-units"
-			str = str + "
+			str = str + ""
 			str = str + " degwidth --scale-low .4 --scale-high .6 "
 			str = str + " --no-plots --continue"
 			str = str + " --dir " + out_dir
@@ -72,7 +72,7 @@ pro jude_call_astrometry, inp_dir, out_dir, min_exp_time = min_exp_time, $
 			
 			if (not(keyword_set(noupdate)))then begin
 				fname = file_basename(files[ifile])
-				fname = strmid(fname,0,strlen(fname)-8)
+				fname = strmid(fname,0,strpos(fname,".fits")
 				new_file = out_dir + "/" + fname + ".new"
 				tst = file_test(new_file)
 				

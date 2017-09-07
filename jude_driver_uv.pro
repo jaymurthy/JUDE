@@ -176,7 +176,7 @@ pro jude_driver_uv, data_dir,$
 ;File definitions
 		fname 		= file_basename(file(ifile))
 		uvit_fname  = fname
-		fname 		= strmid(fname,0,strlen(fname)-8)+"_"+strcompress(string(ifile),/remove)
+		fname 		= strmid(fname,0,strpos(fname,".fits"))+"_"+strcompress(string(ifile),/remove)
 		png_name	= png_dir + fname + ".png"
 		image_name	= image_dir + fname + ".fits"
 		events_name = events_dir + fname + "_bin.fits"

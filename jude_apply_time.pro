@@ -88,9 +88,9 @@ pro	jude_apply_time, data_file, uv_base_dir
 
 ;File definitions
 				fname = file_basename(data_file)
-				fname = strmid(fname,0,strlen(fname)-8)
+				fname = strmid(fname, 0, strpos(fname,".fits"))
 				imname = file_basename(image_file)
-				imname = strmid(imname, 0, strlen(imname) - 8)
+				imname = strmid(imname, 0, strpos(imname,".fits"))
 				if (file_test(image_dir) eq 0)then spawn,"mkdir "  + image_dir
 
 ;Make the basic header
