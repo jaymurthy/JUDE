@@ -393,7 +393,7 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 		endif else image_dir   = params.def_fuv_dir + params.image_dir
 		image_file  = image_dir   + fname + ".fits.gz"
 		imname = file_basename(image_file)
-		imname = strmid(imname, 0, strlen(imname) - 8)
+		imname = strmid(imname, 0, strpos(imname,".fits"))
 
 ;Read the file and update the header
 		im = mrdfits(image_file,0,out_hdr)

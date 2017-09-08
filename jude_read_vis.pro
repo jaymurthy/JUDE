@@ -44,7 +44,7 @@ pro jude_read_vis, file, vis_dir, start_file = start_file, overwrite = overwrite
 ;Check for existence of file
 		fname = file_basename(file(ifile))
 		print,ifile,fname,string(13b),format="(i5,1x,a,a,$)"
-		fname = strmid(fname, 0, strlen(fname)- 8)
+		fname = strmid(fname, 0, strpos(fname,".fits"))
 		fout = vis_dir + fname + "_" + string(ifile) + ".sav"
 		fout = strcompress(fout,/remove)
 		tst_file = file_test(fout)

@@ -527,9 +527,9 @@ print,"Starting centroid"
 
 ;File definitions
 				fname = file_basename(data_file)
-				fname = strmid(fname,0,strlen(fname)-8)
+				fname = strmid(fname,0,strpos(fname,".fits"))
 				imname = file_basename(image_file)
-				imname = strmid(imname, 0, strlen(imname) - 8)
+				imname = strmid(imname, 0, strpos(imname,".fits"))
 				if (file_test(events_dir) eq 0)then spawn,"mkdir " + events_dir
 				if (file_test(image_dir) eq 0)then spawn,"mkdir "  + image_dir
 				if (file_test(png_dir) eq 0) then spawn,"mkdir "   + png_dir
