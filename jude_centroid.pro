@@ -53,6 +53,7 @@
 ;JM: Aug. 03, 2017: Added option to quit.
 ;JM: Aug. 11, 2017: Nbin is redundant (params.fine_bin) so removed the option
 ;JM: Aug. 21, 2017: Fixed an inconsistency in passing offsets
+;JM: Sep. 14, 2017: Fixed problem if the offsets were not defined.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -145,6 +146,10 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 ;If we haven't defined xoff and yoff set it to data_l2.xoff
 	if (n_elements(xoff) eq 0)then xoff = data_l2.xoff
 	if (n_elements(yoff) eq 0)then yoff = data_l2.yoff
+	q = where(abs(xoff) gt 500, nq)
+	if (nq gt 0)then xoff[q]= 0
+	q = where(abs(yoff) gt 500, nq)
+	if (nq gt 0)then yoff[q]= 0
 	
 ;Select star
 	if ((n_elements(xstar) eq 0) or (keyword_set(new_star)))then begin
@@ -155,8 +160,7 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 		nframes = jude_add_frames(data_l2, grid2, pixel_time,  params, $
 				xoff*params.resolution, $
 				yoff*params.resolution, /notime)
-		gsiz = size(grid2)
-		
+		gsiz = size(grid2)		
 		if (max(grid2) eq 0)then goto, noproc
 		
 		xstar = sxpar(data_hdr0, "XCENT", count = nxstar)
@@ -259,8 +263,8 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 		dqi = where(data_l2[params.min_frame:params.max_frame].dqi eq 0,ndqi)
 		if (ndqi gt 3)then begin
 			nframes = jude_add_frames(data_l2, grid2, pixel_time,  params, $
-				data_l2.xoff*params.resolution, $
-				data_l2.yoff*params.resolution, /notime)
+				xoff*params.resolution, $
+				yoff*params.resolution, /notime)
 
 			if (display eq 1)then begin
 ;If we have a window open keep it, otherwise pop up a default window

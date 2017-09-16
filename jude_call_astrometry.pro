@@ -72,7 +72,7 @@ pro jude_call_astrometry, inp_dir, out_dir, min_exp_time = min_exp_time, $
 			
 			if (not(keyword_set(noupdate)))then begin
 				fname = file_basename(files[ifile])
-				fname = strmid(fname,0,strpos(fname,".fits")
+				fname = strmid(fname,0,strpos(fname,".fits"))
 				new_file = out_dir + "/" + fname + ".new"
 				tst = file_test(new_file)
 				
