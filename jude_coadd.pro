@@ -156,7 +156,7 @@ pro jude_coadd, images_dir, out_file, ra_cent, dec_cent, fov, pixel_size
 	calf = sxpar(d2_hdr, "CALF")
 	uvit_pix_size = 3.34/3600./8.
 	calp = calf*(pix_size/uvit_pix_size/^2
-	sxaddpar, out_hdr, "CALF", cal , "Cal factor: Ergs cm-2 s-1 A-1 pixel-1 (cps)-1"
+	sxaddpar, out_hdr, "CALF", calp , "Cal factor: Ergs cm-2 s-1 A-1 pixel-1 (cps)-1"
 	
 	mwrfits, gtotal, out_file, out_hdr, /create
 	mwrfits, gtimes, out_file
