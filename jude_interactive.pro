@@ -408,8 +408,12 @@ if (param_ans eq -3)then stop
 		
 			run_centroid = 'y'
 			if (defaults eq 0)then begin
-				print,"Run centroid (y/n)? Default is y."
+				print,"Run centroid (y/n)? Default is y (r to reset offsets)."
 				run_centroid = get_kbrd(1)
+				if (run_centroid eq 'r')then begin
+					xoff_sc = xoff_sc*0
+					yoff_sc = yoff_sc*0
+				endif
 				if (run_centroid ne 'n')then run_centroid = 'y'
 			endif
 			if ((defaults and 2) eq 2)then run_centroid = 'n'
