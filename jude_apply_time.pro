@@ -103,7 +103,7 @@ pro	jude_apply_time, data_file, uv_base_dir
 
 ;Calibration factor
 				cal_factor = jude_apply_cal(detector, nom_filter)
-				sxaddpar, out_hdr, "CALF", cal_factor, "Ergs cm-2 s-1 A-1 (cps)-1"
+				sxaddpar, out_hdr, "CALF", cal_factor, "Ergs cm-2 s-1 A-1 pixel-1 (cps)-1"
 
 ;Check the exposure time
 				q = where(data_l2.dqi eq 0, nq)

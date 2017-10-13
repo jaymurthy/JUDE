@@ -422,8 +422,8 @@ endif
 
 ;Calibration factor
 	cal_factor = jude_apply_cal(detector, nom_filter)
-	sxaddpar, out_hdr, "CALF", cal_factor, "Ergs cm-2 s-1 A-1 (cps)-1"
-	sxaddpar, bout_hdr, "CALF", cal_factor, "Ergs cm-2 s-1 A-1 (cps)-1"
+	sxaddpar, out_hdr, "CALF", cal_factor, "Ergs cm-2 s-1 A-1 pixel-1 (cps)-1"
+	sxaddpar, bout_hdr, "CALF", cal_factor, "Ergs cm-2 s-1 A-1 pixel-1 (cps)-1"
 
 ;Information about the original file
 	if (strlen(data_dir) gt 69)then $
