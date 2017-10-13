@@ -154,7 +154,7 @@ pro jude_coadd, images_dir, out_file, ra_cent, dec_cent, fov, pixel_size
 	sxaddpar,out_hdr, "FILTER", sxpar(d2_hdr, "FILTER"),"UVIT Filter"
 ;This is the calibration factor per pixel in the original data.
 	calf = sxpar(d2_hdr, "CALF")
-	uvit_pix_size = 3.34/3600./8.
+	uvit_pix_size = 3.28/3600./8.
 	calp = calf*(pixel_size/uvit_pix_size)^2
 	sxaddpar, out_hdr, "CALF", calp , "Cal factor: Ergs cm-2 s-1 A-1 pixel-1 (cps)-1"
 	
