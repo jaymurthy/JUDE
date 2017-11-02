@@ -52,6 +52,8 @@
 ;JM: Aug. 02, 2017: Explicitly print number of frames.
 ;JM: Aug. 03, 2017: Added option to quit.
 ;JM: Aug. 11, 2017: Nbin is redundant (params.fine_bin) so removed the option
+;JM: Aug. 21, 2017: Fixed an inconsistency in passing offsets
+;JM: Sep. 14, 2017: Fixed problem if the offsets were not defined.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -144,6 +146,10 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 ;If we haven't defined xoff and yoff set it to data_l2.xoff
 	if (n_elements(xoff) eq 0)then xoff = data_l2.xoff
 	if (n_elements(yoff) eq 0)then yoff = data_l2.yoff
+	q = where(abs(xoff) gt 500, nq)
+	if (nq gt 0)then xoff[q]= 0
+	q = where(abs(yoff) gt 500, nq)
+	if (nq gt 0)then yoff[q]= 0
 	
 ;Select star
 	if ((n_elements(xstar) eq 0) or (keyword_set(new_star)))then begin
@@ -154,8 +160,7 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 		nframes = jude_add_frames(data_l2, grid2, pixel_time,  params, $
 				xoff*params.resolution, $
 				yoff*params.resolution, /notime)
-		gsiz = size(grid2)
-		
+		gsiz = size(grid2)		
 		if (max(grid2) eq 0)then goto, noproc
 		
 		xstar = sxpar(data_hdr0, "XCENT", count = nxstar)
@@ -258,8 +263,8 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 		dqi = where(data_l2[params.min_frame:params.max_frame].dqi eq 0,ndqi)
 		if (ndqi gt 3)then begin
 			nframes = jude_add_frames(data_l2, grid2, pixel_time,  params, $
-				data_l2.xoff*params.resolution, $
-				data_l2.yoff*params.resolution, /notime)
+				xoff*params.resolution, $
+				yoff*params.resolution, /notime)
 
 			if (display eq 1)then begin
 ;If we have a window open keep it, otherwise pop up a default window
@@ -327,7 +332,7 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 	if (nq gt 3)then begin
 		quadterp,xindex[q],xcent[q]-xcent[q[0]],findgen(ndata_l2),xoff,missing=-1e6
 		quadterp,xindex[q],ycent[q]-ycent[q[0]],findgen(ndata_l2),yoff,missing=-1e6
-		qmiss = where((xoff gt -1e6) and (yoff gt -1e6),nmiss)
+		qmiss = where((xoff gt -1e6) or (yoff gt -1e6),nmiss)
 
 		if (nmiss gt 0) then begin
 			xoff[qmiss] = -xoff[qmiss]
@@ -359,10 +364,19 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 		tv,bytscl(rebin(h1, siz[0]*4,siz[1]*4),0,max_im_value),512,0
 		print,"New width is ",a1[2],a1[3]
 
+;Update offsets
+		qbad = where((xoff le -1e6) or (yoff le -1e6),nqbad)
+		xoff = xoff/params.resolution
+		yoff = yoff/params.resolution
+		if (nqbad gt 0)then begin
+			xoff[qbad] = -1e6
+			yoff[qbad] = -1e6
+		endif
+		data_l2.xoff = xoff
+		data_l2.yoff = yoff
+
 	if (not(keyword_set(nosave)))then begin
 ;Update original events file
-		data_l2.xoff = xoff/params.resolution
-		data_l2.yoff = yoff/params.resolution
 		offsets=mrdfits(events_file,2,off_hdr)
 		sxaddhist,"jude_centroid has been run",data_hdr0
 		sxaddpar,data_hdr0, "XCENT", xstar_first/params.resolution, "XPOS of centroid star"
@@ -383,7 +397,7 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 		endif else image_dir   = params.def_fuv_dir + params.image_dir
 		image_file  = image_dir   + fname + ".fits.gz"
 		imname = file_basename(image_file)
-		imname = strmid(imname, 0, strlen(imname) - 8)
+		imname = strmid(imname, 0, strpos(imname,".fits"))
 
 ;Read the file and update the header
 		im = mrdfits(image_file,0,out_hdr)

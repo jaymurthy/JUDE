@@ -40,7 +40,9 @@
 ;	JM: Aug. 11, 2017 : If defaults = 2 then I don't run centroiding or write events file.
 ;	JM: Aug. 14, 2017 : Added keywords to time header
 ;	JM: Aug. 16, 2017 : Modified defaults as per table below
-;	JM: Aug. 22, 2017 : Minor typo
+;	JM: Aug. 21, 2017 : Minor typo
+;	JM: Aug. 21, 2017 : Problem in offsets if centroid was quit
+;	JM: Aug. 28, 2017 : Was writing header incorrectly for second extension.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -406,8 +408,12 @@ if (param_ans eq -3)then stop
 		
 			run_centroid = 'y'
 			if (defaults eq 0)then begin
-				print,"Run centroid (y/n)? Default is y."
+				print,"Run centroid (y/n)? Default is y (r to reset offsets)."
 				run_centroid = get_kbrd(1)
+				if (run_centroid eq 'r')then begin
+					xoff_sc = xoff_sc*0
+					yoff_sc = yoff_sc*0
+				endif
 				if (run_centroid ne 'n')then run_centroid = 'y'
 			endif
 			if ((defaults and 2) eq 2)then run_centroid = 'n'
@@ -476,8 +482,8 @@ print,"Starting centroid"
 					xoff = xoff_cent, yoff = yoff_cent,$
 					/nosave, defaults = defaults, /new_star,$
 					max_im_value = max_im_value, display = display
-				xoff_sc = xoff_cent/params.resolution
-				yoff_sc = yoff_cent/params.resolution
+				xoff_sc = xoff_cent
+				yoff_sc = yoff_cent
 			endif
 			
 ;Final image production
@@ -525,9 +531,9 @@ print,"Starting centroid"
 
 ;File definitions
 				fname = file_basename(data_file)
-				fname = strmid(fname,0,strlen(fname)-8)
+				fname = strmid(fname,0,strpos(fname,".fits"))
 				imname = file_basename(image_file)
-				imname = strmid(imname, 0, strlen(imname) - 8)
+				imname = strmid(imname, 0, strpos(imname,".fits"))
 				if (file_test(events_dir) eq 0)then spawn,"mkdir " + events_dir
 				if (file_test(image_dir) eq 0)then spawn,"mkdir "  + image_dir
 				if (file_test(png_dir) eq 0) then spawn,"mkdir "   + png_dir
@@ -546,7 +552,7 @@ print,"Starting centroid"
 
 ;Calibration factor
 				cal_factor = jude_apply_cal(detector, nom_filter)
-				sxaddpar, out_hdr, "CALF", cal_factor, "Ergs cm-2 s-1 A-1 (cps)-1"
+				sxaddpar, out_hdr, "CALF", cal_factor, "Ergs cm-2 s-1 A-1 pixel-1 (cps)-1"
 
 ;Check the exposure time
 				q = where(data_l2.dqi eq 0, nq)
@@ -571,9 +577,9 @@ print,"Starting centroid"
 				t = data_dir + uv_base_dir  + params.image_dir + imname + ".fits"
 				print,"writing image file to ",t
 				mwrfits,grid,t,out_hdr,/create
-				mkhdr, thdr, pixel_time
+				mkhdr, thdr, pixel_time, /image
 				if (keyword_set(notime))then begin
-					sxaddpar,thdr,"BUNIT","Number of frames","Exposure map not applied"
+					sxaddpar,thdr,"BUNIT","Ns","Exposure map not applied"
 				endif else begin
 					sxaddpar,thdr,"BUNIT","s","Exposure map"
 				endelse

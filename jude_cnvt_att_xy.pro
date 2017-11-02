@@ -81,8 +81,8 @@ START_PROGRAM:
 ;Make preliminary header
 	nx = sxpar(out_hdr, "NAXIS1")
 	ny = sxpar(out_hdr, "NAXIS2")
-	xpix = -3.34/3600./resolution
-	ypix =  3.34/3600./resolution
+	xpix = -3.28/3600./resolution
+	ypix =  3.28/3600./resolution
 	
 ;Keep track of bad data
 	old_bad = lonarr(n_elems)

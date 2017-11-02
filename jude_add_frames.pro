@@ -61,6 +61,8 @@
 ;JM: Jul  27, 2017: Corrected reference frame.
 ;JM: Aug. 12, 2017: Modified time addition to be faster (but still slow).
 ;JM: Aug. 18, 2017: Corrected crash if xoff or yoff are not passed through
+;JM: Aug. 21, 2017: Made Dtime floating instead of double.
+;JM: Aug. 27, 2017: Reset ref_frame if required
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -118,6 +120,7 @@ if (min_frame eq 0)then min_frame = $
 		(abs(yoff) lt 1000)))
 		
 if (n_elements(ref_frame) eq 0)then ref_frame = min_frame
+if (ref_frame eq -1)then ref_frame = min_frame
 while (((abs(xoff[ref_frame]) gt 1000) or (abs(yoff[ref_frame]) gt 1000)) and $
 	   (ref_frame lt (n_elements(data) - 2))) do ref_frame = ref_frame + 1
 if (max_frame eq 0) then max_frame =  n_elements(data)-1
@@ -239,7 +242,7 @@ endfor
 
 ;Put grid into units of either counts per pixel per frame or counts per pixel per s.
 if (keyword_set(notime))then pixel_time = fltarr(gxsize, gysize) + nframe
-if (not(keyword_set(notime)))then pixel_time = pixel_time*dtime/nframe
+if (not(keyword_set(notime)))then pixel_time = pixel_time*float(dtime)/nframe
 q = where(pixel_time gt 0, nq)
 if (nq gt 0)then grid(q) = grid(q)/pixel_time(q)
 return,nframe ;Return number of frames

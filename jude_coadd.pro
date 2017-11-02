@@ -10,7 +10,7 @@
 ;				out_file:	FITS image file
 ; OPTIONAL INPUTS:
 ;				ra_cent:	Central RA in degrees
-;				dec_Cent:	Central Dec in degrees
+;				dec_cent:	Central Dec in degrees
 ;				Fov:		Field of view in degrees
 ;				pixel_size:	Size of each pixel in degrees
 ; OPTIONAL KEYWORDS:
@@ -22,6 +22,7 @@
 ;Modification history
 ;JM: Aug.  9, 2017
 ;JM: Aug. 19, 2017: Added calibration keywords.
+;JM: Oct. 13, 2017: Added calibration per pixel.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -151,7 +152,12 @@ pro jude_coadd, images_dir, out_file, ra_cent, dec_cent, fov, pixel_size
 	mkhdr, out_hdr, gtotal
 	putast, out_hdr, astr
 	sxaddpar,out_hdr, "FILTER", sxpar(d2_hdr, "FILTER"),"UVIT Filter"
-	sxaddpar, out_hdr, "CALF",  sxpar(d2_hdr, "CALF"), "Ergs cm-2 s-1 A-1 (cps)-1"
+;This is the calibration factor per pixel in the original data.
+	calf = sxpar(d2_hdr, "CALF")
+	uvit_pix_size = 3.28/3600./8.
+	calp = calf*(pixel_size/uvit_pix_size)^2
+	sxaddpar, out_hdr, "CALF", calp , "Cal factor: Ergs cm-2 s-1 A-1 pixel-1 (cps)-1"
+	
 	mwrfits, gtotal, out_file, out_hdr, /create
 	mwrfits, gtimes, out_file
 	

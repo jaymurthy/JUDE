@@ -13,6 +13,7 @@
 ;	JM: Oct. 28, 2016 : Array was incorrectly typecast as int.
 ;	JM: Apr. 12, 2016 : Crashed if there were no VIS files.
 ;	JM: May  23, 2017 : Version 3.1
+;	JM: Sept 21, 2017 : minor correction in times in read_offset_file
 ;COPYRIGHT
 ;Copyright 2016 Jayant Murthy
 ;
@@ -38,7 +39,7 @@ function read_offset_file, offset_file, times, xoff, yoff
 		openr,off_lun,offset_file,/get
 			min_ftime = 0d
 			max_ftime = 0d
-			readf,off_lun,min_time, max_time
+			readf,off_lun,min_ftime, max_ftime
 			readf,off_lun,off
 		free_lun,off_lun
 		times = reform(off[1,*], noff)

@@ -21,6 +21,7 @@
 ;
 ;Modification history
 ;JM: July 19, 2017
+;JM: Sep. 28, 2017: Internal change to add NUV directory
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -54,10 +55,11 @@ pro jude_call_astrometry, inp_dir, out_dir, min_exp_time = min_exp_time, $
 	
 		if ((exp_time gt min_exp_time) and (astr_done ne "TRUE"))then begin
 			str = "solve-field"
-			if (keyword_set(fuv))then $
+			if (keyword_set(fuv))then begin
 				str = "solve-field --backend-config /Volumes/UVIT_Data/astrometric/astrometry.cfg"
+			endif else str = "solve-field --backend-config /Volumes/UVIT_Data/astrometry_tycho/astrometry.cfg"
 			str =  str + " --downsample 4 --scale-units"
-			str = str + "
+			str = str + ""
 			str = str + " degwidth --scale-low .4 --scale-high .6 "
 			str = str + " --no-plots --continue"
 			str = str + " --dir " + out_dir
@@ -72,7 +74,7 @@ pro jude_call_astrometry, inp_dir, out_dir, min_exp_time = min_exp_time, $
 			
 			if (not(keyword_set(noupdate)))then begin
 				fname = file_basename(files[ifile])
-				fname = strmid(fname,0,strlen(fname)-8)
+				fname = strmid(fname,0,strpos(fname,".fits"))
 				new_file = out_dir + "/" + fname + ".new"
 				tst = file_test(new_file)
 				

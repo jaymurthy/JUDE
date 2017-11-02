@@ -88,9 +88,9 @@ pro	jude_apply_time, data_file, uv_base_dir
 
 ;File definitions
 				fname = file_basename(data_file)
-				fname = strmid(fname,0,strlen(fname)-8)
+				fname = strmid(fname, 0, strpos(fname,".fits"))
 				imname = file_basename(image_file)
-				imname = strmid(imname, 0, strlen(imname) - 8)
+				imname = strmid(imname, 0, strpos(imname,".fits"))
 				if (file_test(image_dir) eq 0)then spawn,"mkdir "  + image_dir
 
 ;Make the basic header
@@ -103,7 +103,7 @@ pro	jude_apply_time, data_file, uv_base_dir
 
 ;Calibration factor
 				cal_factor = jude_apply_cal(detector, nom_filter)
-				sxaddpar, out_hdr, "CALF", cal_factor, "Ergs cm-2 s-1 A-1 (cps)-1"
+				sxaddpar, out_hdr, "CALF", cal_factor, "Ergs cm-2 s-1 A-1 pixel-1 (cps)-1"
 
 ;Check the exposure time
 				q = where(data_l2.dqi eq 0, nq)

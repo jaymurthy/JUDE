@@ -160,41 +160,21 @@ function set_limits, grid2, xstar, ystar, boxsize, resolution,$
 end
 ;*****************END DISPLAY PROGRAMS***************************
 
-pro jude_fuv_astrometry, new_file, ref_file, both_same = both_same, $
-	ref_stars = ref_stars, new_max_value = new_max_value, ref_max_value = ref_max_value
+pro plot_simbad, ref_file,  refra, refdec, refx, refy, ref_max_value = ref_max_value
 
 ;Initialization
-	if (n_elements(new_max_value) eq 0)then new_max_value = 0.0002
 	if (n_elements(ref_max_value) eq 0)then ref_max_value = 0.0002
 	device,window_state = window_state
 	if (window_state[0] eq 0)then $
 			window, 0, xs = 1024, ys = 512, xp = 10, yp = 500
 		
 ;Read data from image files
-	new_im   = mrdfits(new_file, 0, new_hdr, /silent)
-	new_time = mrdfits(new_file, 1, new_thdr, /silent)
 	ref_im   = mrdfits(ref_file, 0, ref_hdr, /silent)
-	if (strcompress(sxpar(ref_hdr, "ASTRDONE"),/rem) ne "TRUE")then begin
-		print,"No astrometry done on reference image"
-		goto, noproc
-	endif
-	if (strcompress(sxpar(new_hdr, "ASTRDONE"),/rem) eq "TRUE")then begin
-		ans=''
-		read,"Astrometry already done, continue?",ans
-		if (ans eq 'n')then goto, noproc
-	endif
 	extast, ref_hdr, ref_astr
 	ref_time = mrdfits(ref_file, 1, ref_thdr, /silent)
 	ans='y'
 	while (ans eq 'y')do begin
-		tv,bytscl(rebin(new_im,512,512),0,new_max_value)
-		print,"Change scale? "
-		ans = get_kbrd(1)
-		if (ans eq 'y')then read,"New scale factor: ",new_max_value
-	endwhile
-	ans='y'
-	while (ans eq 'y')do begin
-		tv,bytscl(rebin(ref_im,512,512), 0, ref_max_value),512,0
+		tv,bytscl(rebin(ref_im,512,512), 0, ref_max_value),0,0
 		print,"Change scale? "
 		ans = get_kbrd(1)
 		if (ans eq 'y')then read,"New scale factor: ",ref_max_value
@@ -209,10 +189,11 @@ pro jude_fuv_astrometry, new_file, ref_file, both_same = both_same, $
 		refdec = ref_stars[*,1]
 		ad2xy, refra, refdec, ref_astr, refxp, refyp
 	endif else begin
-		find_point_sources, ref_im, refxp, refyp, reffp, ref_max_value, 512, 0
+		find_point_sources, ref_im, refxp, refyp, reffp, ref_max_value, 0, 0
 		xy2ad, refxp, refyp, ref_astr, refra, refdec
 	endelse
 	nrefpoints = n_elements(refxp)
+		tv,bytscl(rebin(ref_im,512,512), 0, ref_max_value),512,0
 	
 ;I now have a list of stars with good astrometry where I've identified the 
 ;x and y with ra and dec.
@@ -231,147 +212,25 @@ pro jude_fuv_astrometry, new_file, ref_file, both_same = both_same, $
 		print,strcompress(str)
 	endfor
 	
-;If the images are different, I assume that the NUV has good astrometry and
-;is the reference image. I then have to rotate by 35 degrees and then reflect
-;about the x axis to get the stars to match with the FUV
-	if (not(keyword_set(both_same)))then begin
-		hrot, ref_im, ref_hdr, t_new, t_hdr, 35., -1, -1, 0
-		hreverse, t_new, t_hdr, ref_new, ref_hdr_new, 2
-		extast, ref_hdr_new, ref_astr_new
-	endif else begin
-		ref_astr_new = ref_astr
-		ref_new = ref_im
-	endelse
-	
-;Let's begin identifying the stars
-	nnewstars = 0
-;All stars should have the same offset which I assume to be 0 to start with
-	diffx = 0
-	diffy = 0
-	for istar = 0, nrefpoints - 1 do begin
-	
-;There is no point in identifying more than 6 stars
-		if (nnewstars lt 6)then begin
-			refstar = simb_stars[istar]
-			str = names[refstar] + " " + stype[refstar] + " " + string(mag[refstar])
-			print,strcompress(str)
-			
-;Display the position of the star in both images
-			ad2xy,ra[refstar], dec[refstar], ref_astr_new, refrefstarx, refrefstary
-			display_image, new_im, new_max_value, refrefstarx + diffx, refrefstary + diffy, 0, 0
-			display_image, ref_new, ref_max_value, refrefstarx, refrefstary, 512, 0
-			
-;Is this the right star?
-			print,"Do we use this reference star? (Default is y)"
-			ans = ''
-			ans = get_kbrd(1)
-			if (ans ne 'n')then begin
-			
-;If yes, centroid to find the exact position. Note that I always assume the 
-;highest possible resolution.
-				boxsize = 20
-				resolution = 8
-				ans = 'y'
-				print, "Is the star ok in the left? (default is y)"
-				ans = get_kbrd(1)
-				if (ans eq 'n')then begin
-					print,"Select star in the left image."
-					cursor,xstar,ystar,/dev & xstar = xstar*resolution & ystar = ystar*resolution
-				endif else begin
-					xstar = refrefstarx + diffx
-					ystar = refrefstary + diffy
-				endelse
-				h1 = set_limits(new_im, xstar, ystar, boxsize, resolution, xmin = xmin, ymin = ymin)
-				siz = size(h1, /dimensions)
-				tcent = total(h1)
-				xcent = total(total(h1, 2)*indgen(siz[0]))/tcent
-				ycent = total(total(h1, 1)*indgen(siz[1]))/tcent
-				xstar = xmin + xcent
-				ystar = ymin + ycent
-				display_image, new_im, new_max_value, xstar, ystar, 0, 0
-				tv,bytscl(h1 ,0,new_max_value),512,0
-				plots,xcent+512,ycent,/psym,symsize=3,col=255,/dev
-				print,"Fine tune the position?, default is n."
-				ans = get_kbrd(1)
-				while (ans eq 'y')do begin
-					print,"Cursor position?"
-					cursor,xcent,ycent,/dev
-					xcent = xcent - 512
-					plots,xcent+512,ycent,psym=4,symsize=3,col=255,/dev
-					print,"More fine tuning, default is n?"
-					ans = get_kbrd(1)
-					xstar = xmin + xcent
-					ystar = ymin + ycent
-				endwhile
-					
-;Calculate the angle between the star and the reference as a sanity check.
+ans=''
+print,"continue?"
+ans = get_kbrd(1)
 
-				if (nnewstars gt 0)then begin
-					dotn = sqrt((refrefstarx - refrefx0)^2 + (refrefstary - refrefy0)^2)
-					dotf = sqrt((xstar - newxp[0])^2 + (ystar - newyp[0])^2)
-					print,"distance between stars - REF: ",dotn," UNKNOWN: ",dotf
-				endif
-				print,"Star ok for astrometry? (Default is yes)"
-				ans = get_kbrd(1)
-
-				if (ans eq 's')then stop
-				if (ans ne 'n')then begin
-					if (nnewstars eq 0)then begin
-						new_stars = refstar
-						newxp     = xstar
-						newyp     = ystar
-						newra     = ra[refstar]
-						newdec    = dec[refstar]
-						nnewstars = 1
-						refrefx0 = refrefstarx
-						refrefy0 = refrefstary
-						diffx    = xstar - refrefx0
-						diffy    = ystar - refrefy0
-					endif else begin
-						new_stars = [new_stars, refstar]
-						newxp     = [newxp, xstar]
-						newyp 	  = [newyp, ystar]
-						newra     = [newra, ra[refstar]]
-						newdec    = [newdec, dec[refstar]]
-						nnewstars = nnewstars + 1
-					endelse
-				endif
-			endif
-		endif
-	endfor
+;Check each star
+for istar = 0, nrefpoints - 1 do begin
+	tv,bytscl(rebin(ref_im,512,512), 0, ref_max_value),0,0
+	plots,/dev,refxp[istar]/8.,refyp[istar]/8.,psym=6,symsize=3,thick=2,col=255
+	h1 = set_limits(ref_im, refxp[istar], refyp[istar], 5, 8, xmin=xmin, ymin = ymin)
+	siz = size(h1, /dimens)
+	tv,bytscl(rebin(h1, siz(0)*5, siz(1)*5),0, ref_max_value),512,0
+	r1 = mpfit2dpeak(h1, a1)
+	plots,(refxp[istar]-xmin)*5 + 512,(refyp[istar] - ymin)*5,/psym,/dev,symsize=3,thick=2,col=255
+	plots,a1[4]*5 + 512, a1[5]*5,psym=6,/dev,symsize=3,thick=2,col=255
+	dst = sqrt((a1[4] - (refxp[istar] - xmin))^2 + (a1[5] - (refyp[istar] - ymin))^2)
+	print,names[simb_stars[istar]]," ",dst
+	ans = get_kbrd(1)
+endfor
 	
-;Save stars for future.
-	openw,ref_lun,"ref_stars.txt",/get_lun
-	printf,ref_lun,newra
-	printf,ref_lun,newdec
-	free_lun,ref_lun
-;Calculate astrometry using either solve astro or starast	
-	if (n_elements(newxp) gt 5)then begin
-				astr = solve_astro(newra, newdec, newxp, newyp, distort = 'tnx')
-				putast, new_hdr, astr
-			endif else if (n_elements(newra) gt 2)then begin
-				newra  = newra[0:2]
-				newdec = newdec[0:2]
-				newxp = newxp[0:2]
-				newyp = newyp[0:2]			
-				starast, newra, newdec, newxp, newyp, cd, hdr=new_hdr
-			endif else if (n_elements(newra) eq 2)then begin
-				starast, newra, newdec, newxp, newyp, cd, hdr=new_hdr,/right
-			endif else begin
-				print,"Not enough stars"
-				goto,noproc
-			endelse
-
-;Update the header
-			ans=""
-;			read,"Apply correction? ",ans
-			ans = 'y'
-			if (ans eq 'y')then begin
-				sxaddpar,new_hdr,"ASTRDONE","TRUE"
-				t = strmid(new_file, 0, strlen(new_file) - 3)
-				mwrfits,new_im, t, new_hdr, /create
-				mwrfits, new_time, t, new_thdr
-				spawn,"gzip -fv " + t
-			endif
+	
 noproc:	
 	end
