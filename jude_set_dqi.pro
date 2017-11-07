@@ -122,22 +122,26 @@ function jude_set_dqi, data_hdr, data_l1, data_l1a, hk, att, out_hdr
 	endif
 	index_min 	= max(where(att.time le min(data_l1a.time))) > 0
 	index_max 	= min(where(att.time ge max(data_l1a.time))) > index_min
-	att 		= att(index_min:index_max)
+	att_new 		= att(index_min:index_max)
 	index_min 	= max(where(hk.time le min(data_l1a.time))) > 0
 	index_max 	= min(where(hk.time ge max(data_l1a.time))) > index_min
-	hk  		= hk(index_min:index_max)
+	hk_new  		= hk(index_min:index_max)
 
 ;Populate the attitudes
+	index = 0
 	for ielem = 0l, nelems - 1 do begin
-		index0 = max(where(att.time le data_l1a[ielem].time, nq0))
-		index1 = min(where(att.time ge data_l1a[ielem].time, nq1))
+		index0 = max(where(att_new[index:*].time le data_l1a[ielem].time, nq0))
+		index1 = min(where(att_new[index:*].time ge data_l1a[ielem].time, nq1))
+		index0 = index0 + index
+		index1 = index1 + index
+		index  = index0
 		dqi_value = 0 ;No attitude information
 		if ((nq0 eq 0) or (nq1 eq 0))then $
 			data_l1a[ielem].dqi = data_l1a[ielem].dqi + dqi_value 
 		if (data_l1a[ielem].dqi eq 0)then begin
-			data_l1a[ielem].roll_ra  = att[index0].roll_ra
-			data_l1a[ielem].roll_dec = att[index0].roll_dec
-			data_l1a[ielem].roll_rot = att[index0].roll_rot
+			data_l1a[ielem].roll_ra  = att_new[index0].roll_ra
+			data_l1a[ielem].roll_dec = att_new[index0].roll_dec
+			data_l1a[ielem].roll_rot = att_new[index0].roll_rot
 		endif
 	endfor
 	old_time = 0
@@ -157,10 +161,10 @@ function jude_set_dqi, data_hdr, data_l1, data_l1a, hk, att, out_hdr
 				str = strcompress(str)
 				jude_err_process,"errors.txt", str
 			endif else old_frame = frame[ielem]
-	
+
 ;Match the housekeeping to the image data by time
-			index0 = max(where(hk.time le data_l1a[ielem].time, nq0))
-			index1 = min(where(hk.time ge data_l1a[ielem].time, nq1))
+			index0 = max(where(hk_new.time le data_l1a[ielem].time, nq0))
+			index1 = min(where(hk_new.time ge data_l1a[ielem].time, nq1))
 			dqi_value = 8;
 			if ((nq0 eq 0) or (nq1 eq 0))then begin
 				data_l1a[ielem].dqi = data_l1a[ielem].dqi + $
@@ -174,17 +178,17 @@ filter_dqi = 32
 ;is sometimes wrong. However, I only want to check it once because I want
 ;all the data in file to be from the same filter. Thus I mark the data before 
 ;the first filter "change" as bad.
-			data_l1a[ielem].filter = hk[index0].filter
-			if ((abs(hk(index0).filter - nom_filter_angle) gt filter_fuzz) or $
-				(abs(hk(index1).filter - nom_filter_angle) gt filter_fuzz))then begin
-				q  = where(abs(hk[index0].filter - filter_angle) lt filter_fuzz, nq)
-				q1 = where(abs(hk[index1].filter - filter_angle) lt filter_fuzz, nq1)
+			data_l1a[ielem].filter = hk_new[index0].filter
+			if ((abs(hk_new(index0).filter - nom_filter_angle) gt filter_fuzz) or $
+				(abs(hk_new(index1).filter - nom_filter_angle) gt filter_fuzz))then begin
+				q  = where(abs(hk_new[index0].filter - filter_angle) lt filter_fuzz, nq)
+				q1 = where(abs(hk_new[index1].filter - filter_angle) lt filter_fuzz, nq1)
 				if ((nq eq 0) or (nq1 eq 0))then begin
 					dqi_value = filter_dqi
 				endif else if (filter_change eq 0)then begin
 					dqi_value = filter_dqi
-					q = where (abs(hk(index1).filter - filter_angle) lt filter_fuzz)
-					nom_filter_angle = hk(index0).filter
+					q = where (abs(hk_new(index1).filter - filter_angle) lt filter_fuzz)
+					nom_filter_angle = hk_new(index0).filter
 					nom_filter = filter(q[0])
 					sxaddpar,out_hdr,"FILTER", nom_filter,$
 						"F0=closed, F1,F2..Fn(n=1-7 for FUV, NUV; n=1-5"
@@ -197,7 +201,7 @@ filter_dqi = 32
 								dqi_value ;Set DQI before first filter change
 				endif else begin
 					str = "Ignoring data because filter angle is now  " + $
-					strcompress(string(hk[index1].filter))
+					strcompress(string(hk_new[index1].filter))
 					str = str +  " at time " + string(long(data_l1[ielem].time))
 					str = strcompress(str)
 					jude_err_process,"errors.txt", str
@@ -207,12 +211,12 @@ filter_dqi = 32
 	
 ;*******************************VOLTAGE CHECK***************************
 ;Make sure the voltages are within allowed values (empirically determined)
-			if ((abs(hk(index0).cath_volt  - det_volt[0]) gt 1)   or $
-				(abs(hk(index1).cath_volt  - det_volt[0]) gt 1)   or $
-				(abs(hk(index0).anode_volt - det_volt[1]) gt 100) or $
-				(abs(hk(index1).anode_volt - det_volt[1]) gt 100) or $
-				(abs(hk(index0).mcp_volt   - det_volt[2]) gt 100) or $
-				(abs(hk(index1).mcp_volt   - det_volt[2]) gt 100)) then begin
+			if ((abs(hk_new(index0).cath_volt  - det_volt[0]) gt 1)   or $
+				(abs(hk_new(index1).cath_volt  - det_volt[0]) gt 1)   or $
+				(abs(hk_new(index0).anode_volt - det_volt[1]) gt 100) or $
+				(abs(hk_new(index1).anode_volt - det_volt[1]) gt 100) or $
+				(abs(hk_new(index0).mcp_volt   - det_volt[2]) gt 100) or $
+				(abs(hk_new(index1).mcp_volt   - det_volt[2]) gt 100)) then begin
 					if (old_time ne data_l1[ielem].time)then begin
 						str = "Voltage out of range at time " + $
 						string(long(data_l1[ielem].time))

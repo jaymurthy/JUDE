@@ -86,6 +86,7 @@
 ;	JM: Aug. 21, 2017 : Changed "Number of frames" to Nframes
 ;	JM: Aug. 27, 2017 : Problem with ref_frame due to repeated calls.
 ;	JM: Aug. 28, 2017 : Was writing header improperly for second extension
+;	JM: Nov.  7, 2017 : Reuse HK data between UV runs for speed increase.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -113,6 +114,7 @@ pro jude_driver_uv, data_dir,$
 	exit_failure = 0
 	version_date = "May 24, 2017"
 	print,"Software version: ",version_date
+	hk_base = ""
 	
 ;**************************INITIALIZATION**************************
 ;DATA_DIR is the top level directory containing all of the data files. I
@@ -172,7 +174,7 @@ pro jude_driver_uv, data_dir,$
 
 ;*********************************BEGIN PROCESSING*****************
 	for ifile = start_file, end_file do begin
-
+time0 = systime(1)
 ;File definitions
 		fname 		= file_basename(file(ifile))
 		uvit_fname  = fname
@@ -180,9 +182,41 @@ pro jude_driver_uv, data_dir,$
 		png_name	= png_dir + fname + ".png"
 		image_name	= image_dir + fname + ".fits"
 		events_name = events_dir + fname + "_bin.fits"
+		tst_file = 1
 ;Don't overwrite files unless explicitly told to.
-		if ((file_test(events_name+"*") eq 1) and (overwrite eq 0))then $
-			goto, no_process
+		if ((file_test(events_name + "*") eq 1) and $
+			(file_test(image_name  + "*") eq 1) and $
+			(overwrite eq 0))then begin
+;Make sure the events file is readable
+			if (file_test(events_name) eq 1)then tfile = events_name else $
+										  		 tfile = events_name + ".gz"
+			im = mrdfits(tfile, 1, data_hdr, /silent, error_action =2)
+			catch, error_status
+;Remove the file if it is bad
+			if (n_elements(im) eq 1) then begin
+				print,"Removing bad file " + tfile
+                spawn,"rm " + tfile
+                tst_file = 0
+            endif
+            catch,/cancel
+;Make sure the image_file is readable
+			if (file_test(image_name) eq 1)then tfile = image_name else $
+										  		tfile = image_name + ".gz"
+			im = mrdfits(tfile, 0, data_hdr, /silent, error_action =2)
+			catch, error_status
+;Remove the file if it is bad
+			if (n_elements(im) eq 1) then begin
+				print,"Removing bad file " + tfile
+                spawn,"rm " + tfile
+                tst_file = 0
+            endif
+            catch,/cancel
+            
+			if (tst_file eq 1)then begin
+				print,"Skipping " + fname,string(13b),format="(a, a, $)"
+				goto, no_process
+			endif
+		endif
 		obs_str = file[ifile]
 		orig_dir = file_dirname(file[ifile])
 		orig_dir = strmid(orig_dir, strlen(data_dir), $
@@ -249,16 +283,17 @@ pro jude_driver_uv, data_dir,$
 		mkhdr, out_hdr, grid
 		JUDE_CREATE_UVIT_HDR,data_hdr0,out_hdr
 		if (check_bod eq exit_failure)then sxaddhist,"No BOD done",out_hdr
-
+		
 ;******************************HOUSEKEEPING and ATTITUDE*********************
 		print,"Begin HK",string(13b),format="(a, a, $)"
-		success  = JUDE_READ_HK_FILES(data_dir, file(ifile), data_hdr0, hk, att, out_hdr)
+		success  = JUDE_READ_HK_FILES(data_dir, file(ifile), data_hdr0, hk, att, $
+									  out_hdr, hk_base = hk_base)
 		if (success eq exit_failure)then begin
 			JUDE_ERR_PROCESS,error_file,"No housekeeping data in file"
 			openw,rm_lun,"rm.sh",/get,/append & printf,rm_lun,"rm "+file(ifile) & free_lun,rm_lun
 			goto,no_process
 		endif
-		
+
 ;*********************************DATA VALIDATION**************************
 		success = JUDE_SET_DQI(data_hdr0, data_l1, data_l1a, hk, att,out_hdr)
 		if (success eq 0)then begin
@@ -276,7 +311,7 @@ print,"Begin event processing",string(13b),format="(a, a, $)"
 		if (success eq 0)then begin
 			JUDE_ERR_PROCESS,error_file,"No attitude information from spacecraft"
 		endif
-			
+		
 ;******************************WRITE LEVEL 2 DATA***********************
 		nrows = n_elements(data_l2)
 		fxbhmake,bout_hdr,nrows,/initialize
@@ -290,6 +325,7 @@ print,"Begin event processing",string(13b),format="(a, a, $)"
 		temp.xoff = temp.xoff/params.resolution
 		temp.yoff = temp.yoff/params.resolution
 		mwrfits,temp,events_name,bout_hdr,/create,/no_comment
+
 ;************************LEVEL 2 DATA *********************************
 ;If the Level 2 data exists, I don't have to go through the HK files again.
 ;The goal is to make the Level 2 data self-contained.
@@ -297,9 +333,6 @@ print,"Begin event processing",string(13b),format="(a, a, $)"
 ;scale.
 	endif else begin;Read Level 1 or Level 2 (line 126)
 		data_l2 = mrdfits(file(ifile),1,data_hdr0)
-;Temporary measure
-q = where(data_l2.dqi eq 2, nq)
-if (nq gt 0)then data_l2[q].dqi = 0
 		data_l2.xoff = data_l2.xoff*params.resolution
 		data_l2.yoff = data_l2.yoff*params.resolution
 		;Make the basic header
@@ -472,6 +505,8 @@ endif
 	printf,obs_lun,obs_str
 no_process:
 if (keyword_set(debug))then stop
+	str = "Time taken for file is " + string(systime(1) - time0) + " seconds"
+	print,strcompress(str)
 endfor
 free_lun,obs_lun
 

@@ -43,7 +43,8 @@
 ;   limitations under the License.
 ;-
 
-function jude_read_hk_files, data_dir, file, data_hdr, hk_out, att_out, out_hdr
+function jude_read_hk_files, data_dir, file, data_hdr, hk_out, att_out, $
+							out_hdr, hk_base = hk_base
 
 ;Define exit variables
     exit_success = 1
@@ -62,6 +63,11 @@ function jude_read_hk_files, data_dir, file, data_hdr, hk_out, att_out, out_hdr
     fname = file_basename(file)
     uvtpos = strpos(fname,"uvt")
     aux_file = strmid(fname,0,uvtpos+3)+"_level"+"*"+".lbt"
+    if (aux_file eq hk_base)then begin
+    	print,"Housekeeping already done",string(13b),format="(a, a, $)"
+   	    sxaddhist, "READ_HK_FILES Version 1.0", out_hdr
+   	    return,EXIT_SUCCESS
+   	endif else hk_base = aux_file
     hk_file = file_search(data_dir,aux_file,count = nhk)
    
 ;If no HK file exists then return error
@@ -69,12 +75,20 @@ function jude_read_hk_files, data_dir, file, data_hdr, hk_out, att_out, out_hdr
         jude_err_process,"errors.txt","Housekeeping file not found"
         return,exit_failure
     endif else begin
+    
+;Figure out how big the HK array has to be.
+		nhk_in = 0l
+		for ihk = 0, nhk - 1 do begin
+			hk_hdr1 = headfits(hk_file[ihk], exten = 1)
+			nhk_in = nhk_in + sxpar(hk_hdr1, "NAXIS2")
+		endfor
+		hk_out = replicate(hk, nhk_in)
+		istart = 0l
 
 ;Read HK files if they exist. The data are in the 1st extension but
 ;some of the information is in both 0 and 1 extensions.
     	for ihk = 0,nhk-1 do begin
 			hname = file_basename(hk_file(ihk))
-			hk_in   = mrdfits(hk_file(ihk), 0, hk_hdr0, /silent)
 			hk_in   = mrdfits(hk_file(ihk), 1, hk_hdr1, /silent)
 			nhk_in = sxpar(hk_hdr1, "NAXIS2")
 
@@ -83,37 +97,21 @@ function jude_read_hk_files, data_dir, file, data_hdr, hk_out, att_out, out_hdr
 			if (detector eq 'FUV')then begin
 			
 ;Merge the HK files. 
-				if (n_elements(hk_out) eq 0) then begin
-					hk_out = replicate(hk, nhk_in); If the first file
-					istart = 0
-				endif else begin
 ;If multiple HK files, I add the next file one by one.
-					istart = n_elements(hk_out)
-					hk_out = [hk_out, replicate(hk, nhk_in)]
-				endelse
-				for i = 0l, nhk_in - 1 do begin 
-					hk_out(istart+i).time           = hk_in(i).time
-					hk_out(istart+i).filter         = hk_in(i).FILTERWHEELMOTORANGLE_FUV
-					hk_out(istart+i).cath_volt      = hk_in(i).CATHODE_VOLTAGE_FUV
-					hk_out(istart+i).anode_volt     = hk_in(i).ANODE_VOLTAGE_FUV
-					hk_out(istart+i).mcp_volt       = hk_in(i).MCP_VOLTAGE_FUV
-				endfor
+				hk_out[istart:istart+nhk_in-1].time       = hk_in.time
+				hk_out[istart:istart+nhk_in-1].filter     = hk_in.FILTERWHEELMOTORANGLE_FUV
+				hk_out[istart:istart+nhk_in-1].cath_volt  = hk_in.CATHODE_VOLTAGE_FUV
+				hk_out[istart:istart+nhk_in-1].anode_volt = hk_in.ANODE_VOLTAGE_FUV
+				hk_out[istart:istart+nhk_in-1].mcp_volt   = hk_in.MCP_VOLTAGE_FUV
+				istart = istart + nhk_in
 ;********************** END FUV BLOCK; BEGIN NUV BLOCK  ***********************
 			endif else begin
-				if (n_elements(hk_out) eq 0) then begin
-					hk_out = replicate(hk, sxpar(hk_hdr1, "NAXIS2"))
-					istart = 0
-				endif else begin
-					istart = n_elements(hk_out)
-					hk_out = [hk_out, replicate(hk, sxpar(hk_hdr1, "NAXIS2"))]
-				endelse
-				for i = 0l, nhk_in - 1 do begin 
-					hk_out(istart+i).time           = hk_in(i).time
-					hk_out(istart+i).filter         = hk_in(i).FILTERWHEELMOTORANGLE_NUV
-					hk_out(istart+i).cath_volt        = hk_in(i).CATHODE_VOLTAGE_NUV
-					hk_out(istart+i).anode_volt        = hk_in(i).ANODE_VOLTAGE_NUV
-					hk_out(istart+i).mcp_volt        = hk_in(i).MCP_VOLTAGE_NUV
-				endfor
+				hk_out[istart:istart+nhk_in-1].time       = hk_in.time
+				hk_out[istart:istart+nhk_in-1].filter     = hk_in.FILTERWHEELMOTORANGLE_NUV
+				hk_out[istart:istart+nhk_in-1].cath_volt  = hk_in.CATHODE_VOLTAGE_NUV
+				hk_out[istart:istart+nhk_in-1].anode_volt = hk_in.ANODE_VOLTAGE_NUV
+				hk_out[istart:istart+nhk_in-1].mcp_volt   = hk_in.MCP_VOLTAGE_NUV
+				istart = istart + nhk_in
 			endelse
         endfor	;Loop through HK files
     endelse
@@ -132,30 +130,30 @@ function jude_read_hk_files, data_dir, file, data_hdr, hk_out, att_out, out_hdr
         jude_err_process,"errors.txt","Attitude file not found"
         return,exit_failure
     endif else begin
+    
+;Figure out how big the ATT array has to be.
+		natt_in = 0l
+		for iatt = 0, natt - 1 do begin
+			att_hdr1 = headfits(att_file[iatt], exten = 1)
+			natt_in = natt_in + sxpar(att_hdr1, "NAXIS2")
+		endfor
+		att_out = replicate(att, natt_in)
+		istart = 0l
+
 ;Loop through attitude files
         for iatt = 0, natt-1 do begin
-            att_in   = mrdfits(att_file(iatt), 0, att_hdr0, /silent)
             att_in   = mrdfits(att_file(iatt), 1, att_hdr1, /silent)
             natt_in = sxpar(att_hdr1, "NAXIS2")
-            if (n_elements(att_out) eq 0) then begin
-                att_out = replicate(att, natt_in)
-                istart = 0
-            endif else begin
-                istart = n_elements(att_out)
-                att_out = [att_out, replicate(att, natt_in)]
-            endelse
-            for i = 0l, natt_in - 1 do begin 
-                att_out(istart+i).time           = att_in(i).time
-                att_out(istart+i).roll_ra         = att_in(i).roll_ra; Nominal boresight RA
-                att_out(istart+i).roll_dec        = att_in(i).roll_dec; Nominal boresight Dec
-                att_out(istart+i).roll_rot        = att_in(i).roll_rot; Nominal boresight roll
-            endfor
+            att_out[istart:istart+natt_in-1].time     = att_in.time
+            att_out[istart:istart+natt_in-1].roll_ra  = att_in.roll_ra; Nominal boresight RA
+            att_out[istart:istart+natt_in-1].roll_dec = att_in.roll_dec; Nominal boresight Dec
+            att_out[istart:istart+natt_in-1].roll_rot = att_in.roll_rot; Nominal boresight roll
+            istart = istart + natt_in
         endfor
     endelse
 ;Sort by increasing time, just in case.
     s = sort(att_out.time)
     att_out = att_out(s)
-
     sxaddhist, "READ_HK_FILES Version 1.0", out_hdr
 return,exit_success
 end

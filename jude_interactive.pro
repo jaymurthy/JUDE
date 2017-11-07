@@ -43,6 +43,7 @@
 ;	JM: Aug. 21, 2017 : Minor typo
 ;	JM: Aug. 21, 2017 : Problem in offsets if centroid was quit
 ;	JM: Aug. 28, 2017 : Was writing header incorrectly for second extension.
+;	JM: Nov.  7, 2017 : Cosmetic changes.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -67,10 +68,6 @@
 
 pro uv_or_vis, xoff_vis, yoff_vis, xoff_uv, yoff_uv, xoff_sc, yoff_sc, dqi
 
-	print,"y to continue, otherwise change defaults."
-	ans = get_kbrd(1)
-	if (ans ne 'y')then ans = 'n'
-	if (ans eq 'n')then begin
 		print,"Do you want to use visible offsets; default is UV? :"
 		ans=get_kbrd(1)
 		if (ans eq "y")then begin
@@ -81,7 +78,6 @@ pro uv_or_vis, xoff_vis, yoff_vis, xoff_uv, yoff_uv, xoff_sc, yoff_sc, dqi
 			xoff_sc = xoff_uv
 			yoff_sc = yoff_uv
 		endelse
-	endif
 end
 
 pro get_offsets, data_l2, offsets, xoff_vis, yoff_vis, xoff_uv, yoff_uv, $
@@ -103,7 +99,6 @@ pro get_offsets, data_l2, offsets, xoff_vis, yoff_vis, xoff_uv, yoff_uv, $
 
 ;We use the UV offsets by default except if use_vis is set
 	if ((vis_exist eq 1) and (frac_vis_att gt .5) and (uv_exist eq 0))then begin
-		print,"Will use visible offsets."
 		xoff_sc = xoff_vis
 		yoff_sc = yoff_vis
 ;We can't use those points where we have no VIS data
@@ -114,7 +109,6 @@ pro get_offsets, data_l2, offsets, xoff_vis, yoff_vis, xoff_uv, yoff_uv, $
 
 ;If there are no VIS offsets but there are UV offsets, we use them	
 	if (uv_exist eq 1)then begin
-		print,"Will use UV offsets."
 		xoff_sc = xoff_uv
 		yoff_sc = yoff_uv
 		q = where((abs(xoff_sc) gt 500) or (abs(yoff_sc) gt 500), nq)
@@ -170,7 +164,7 @@ pro calc_uv_offsets, offsets, xoff_vis, yoff_vis, detector
 end
 
 pro plot_diagnostics, data_l2, offsets, data_hdr0, im_hdr, fname, grid, $
-					params, ymin, ymax
+					params, ymin, ymax, max_im_value
 ;Plot diagnostic information	
 	erase;	Clear the screen
 	
@@ -190,10 +184,10 @@ pro plot_diagnostics, data_l2, offsets, data_hdr0, im_hdr, fname, grid, $
 ;Plotting Block
 	!p.multi = [2,2,3,0,1]
 	plot,h,psym=10,yrange=[0,max(h[1:*])*1.5],xrange=[0,params.max_counts*1.5],$
-		charsize=2
+		charsize=2,xtitle="PHD",ytitle="Number of frames"
 	oplot,[params.max_counts,params.max_counts],[0,max(h[1:*])*1.5],thick=2
 	!p.multi = [3,2,3,0,1]
-	plot,data_l2.dqi,psym=1,charsize=2
+	plot,data_l2.dqi,psym=1,charsize=2,xtitle="Frame No.",ytitle="DQI"
 	!p.multi = [1,2,3,0,1]
 	
 ;UV offsets from self-registration
@@ -220,11 +214,12 @@ pro plot_diagnostics, data_l2, offsets, data_hdr0, im_hdr, fname, grid, $
 	endif
 
 ;Plot the offsets
-	plot,data_l2.time  - data_l2[0].time, xoff_uv,charsize=2,yrange = [ymin, ymax]
+	plot,data_l2.time  - data_l2[0].time, xoff_uv,charsize=2,yrange = [ymin, ymax],$
+		 xtitle = "Obs. Time (s)",ytitle="Offsets (pixels)"
 	oplot,data_l2.time - data_l2[0].time, yoff_uv,linestyle=2
 	oplot,offsets.time - data_l2[0].time, xoff_vis, col=255
 	oplot,offsets.time - data_l2[0].time, yoff_vis, col=255, linestyle = 2
-
+	xyouts,/dev,800,100,"Visible offsets in red",size=3,col=255
 ;Show where there is no VIS data
 	q = where(offsets.att ne 0, nq)
 	if (nq gt 1)then oplot,offsets[q].time - data_l2[0].time, xoff_vis[q], $
@@ -254,6 +249,7 @@ pro plot_diagnostics, data_l2, offsets, data_hdr0, im_hdr, fname, grid, $
 	str = str + " " + string(fix(total(grid)))
 	str = strcompress(str)
 	print,str
+	tv,bytscl(rebin(grid, 512, 512), 0, max_im_value)
 	
 end
 
@@ -266,7 +262,10 @@ pro jude_interactive, data_file, uv_base_dir, data_l2, grid, offsets, params = p
 	exit_failure = 0
 	version_date = "Jun 11, 2017"
 	print,"Software version: ",version_date
-	
+
+;If the default keyword is set we run non-interactively.
+	if not(keyword_set(defaults))then defaults = 0
+
 ;If we have a window open keep it, otherwise pop up a default window
 	device,window_state = window_state
 	if (window_state[0] eq 0)then $
@@ -274,10 +273,7 @@ pro jude_interactive, data_file, uv_base_dir, data_l2, grid, offsets, params = p
 
 ;The image brightness may vary so define a default which may change
 	if (n_elements(max_im_value) eq 0)then max_im_value  = 0.000002
-	
-;If the default keyword is set we run non-interactively.
-	if not(keyword_set(defaults))then defaults = 0
-	
+		
 ;**************************INITIALIZATION**************************
 
 ;The parameters are read using JUDE_PARAMS
@@ -354,7 +350,7 @@ pro jude_interactive, data_file, uv_base_dir, data_l2, grid, offsets, params = p
 check_diag:
 ;Plot the image plus useful diagnostics
 		plot_diagnostics, data_l2, offsets, data_hdr0, im_hdr, fname, grid, $
-					params, ymin, ymax
+					params, ymin, ymax, max_im_value
 					
 		if (defaults ne 0)then ans = 'n' else ans = "y"
 		while (ans eq "y") do begin
@@ -478,6 +474,7 @@ print,"Starting centroid"
 				xoff_cent = xoff_sc
 				yoff_cent = yoff_sc
 				if (defaults eq 0)then display = 1 else display=0
+				
 				jude_centroid, data_file, grid, p, xcent, ycent,$
 					xoff = xoff_cent, yoff = yoff_cent,$
 					/nosave, defaults = defaults, /new_star,$

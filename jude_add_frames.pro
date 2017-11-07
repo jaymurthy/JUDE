@@ -192,7 +192,8 @@ tstart = systime(1)
 for ielem = min_frame,max_frame do begin
 if (not(keyword_set(notime)) and ((ielem mod 100) eq 0)) then begin
 	tleft = (systime(1) - tstart)/(ielem - min_frame)*(max_frame - ielem)
-	print,ielem, max_frame,tleft,string(13b),format="(i7,i7,i7,a,$)"
+	print,ielem, max_frame," Time left: ",tleft,string(13b),$
+			format="(i7,i7,a,i7,a,$)"
 endif
 
 ;Only if frame meets all the conditions

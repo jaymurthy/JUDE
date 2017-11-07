@@ -41,7 +41,7 @@ pro jude_vis_shifts, data_dir, offset_dir, start_file = start_file, $
 	device,window_state = window_state
 
 ;Search for all visible data files in the directory
-	file=file_search(data_dir,"*.sav",count=nfiles)
+	file=file_search(data_dir,"*.fits*",count=nfiles)
 	print,"Total of ", nfiles," VIS files"
 	offname_save = "start"
 	if (file_test(offset_dir) eq 0)then spawn,"mkdir " + offset_dir
@@ -56,13 +56,16 @@ pro jude_vis_shifts, data_dir, offset_dir, start_file = start_file, $
 ;List of offsets. All offsets with the same base are appended.
 		fname = file_basename(file(ifile))
 		print,ifile,fname,string(13b),format="($,i5,1x,a,a)"
-		fname = strmid(fname, 0, strlen(fname) - 4)
+		fpos = strpos(fname, ".fits")
+		fname = strmid(fname, 0, fpos)
 		offname = strcompress(offset_dir +fname + ".offsets", /rem)
 		tst = file_test(offname)
 		if ((tst eq 0) or (overwrite eq 1))then begin
 
 ;Read files
-			restore,file(ifile)
+			vis_table = mrdfits(file[ifile], 1, vis_hdr,/silent)
+			grid = vis_table.grid
+			times = vis_table.times
 			nframes =n_elements(grid(0,0,*))
 			openw,off_lun,offname,/get
 			x1 = 0

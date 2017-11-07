@@ -97,7 +97,8 @@ if (file_test(uv_base_dir + params.temp_dir) gt 0)then $
 	JUDE_MATCH_VIS_OFFSETS, uv_base_dir + params.events_dir, $
 						params.def_vis_dir + params.vis_off_dir
 ;Compress the data.
-	spawn,"gzip -f " + uv_base_dir + params.events_dir + "/*.fits"
+	file = file_search(uv_base_dir + params.events_dir,"*.fits",count=nfiles)
+	if (nfiles gt 0) then spawn,"gzip -f " + uv_base_dir + params.events_dir + "/*.fits"
 	
 ;Write the final data.
 	files = file_search(uv_base_dir + params.events_dir, "*.fits.gz", count = nfiles)
@@ -106,8 +107,6 @@ if (file_test(uv_base_dir + params.temp_dir) gt 0)then $
 	for ifile = 0, nfiles - 1 do $
 		JUDE_INTERACTIVE,files[ifile], uv_base_dir, data, grid, offsets, $
 			 params = params, defaults=4
-	spawn,"gzip -f " + uv_base_dir + params.events_dir + "/*.fits"
-	spawn,"gzip -f " + uv_base_dir + params.image_dir + "/*.fits"
 	obs_file_in  = uv_base_dir + "observation.csv"
 	obs_file_out = uv_base_dir + "final_obslog.csv"
 	JUDE_OBS_LOG,obs_file_out, uv_base_dir, params

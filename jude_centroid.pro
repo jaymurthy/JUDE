@@ -54,6 +54,7 @@
 ;JM: Aug. 11, 2017: Nbin is redundant (params.fine_bin) so removed the option
 ;JM: Aug. 21, 2017: Fixed an inconsistency in passing offsets
 ;JM: Sep. 14, 2017: Fixed problem if the offsets were not defined.
+;JM: Nov.  7, 2017: Cosmetic changes.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -112,7 +113,7 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 	nbin = params.fine_bin
 ;BOXSIZE is the area around each point source. It should be more than the
 ;maximum mostion of the s/c in that duration
-	if (n_elements(boxsize) eq 0)then boxsize = 6 
+	if (n_elements(boxsize) eq 0)then boxsize = 10
 ;MEDSIZ is a  median filter the image to get rid of random hits
 	if (n_elements(medsiz) eq 0)then medsiz = 2
 ;MAX_IM_VALUE for different images
@@ -153,10 +154,6 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 	
 ;Select star
 	if ((n_elements(xstar) eq 0) or (keyword_set(new_star)))then begin
-;If we have a window open keep it, otherwise pop up a default window
-		device,window_state = window_state
-		if (window_state[0] eq 0)then $
-			window, 0, xs = 1024, ys = 512, xp = 10, yp = 500	
 		nframes = jude_add_frames(data_l2, grid2, pixel_time,  params, $
 				xoff*params.resolution, $
 				yoff*params.resolution, /notime)
@@ -183,9 +180,15 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 		endif
 		ans = 'n'
 		while (ans eq 'n') do begin
-			tv,bytscl(rebin(grid2,512,512),0,max_im_value)
-			plots,/dev,xstar/params.resolution,ystar/params.resolution,$
+		;If we have a window open keep it, otherwise pop up a default window
+			if (display ne 0)then begin
+				device,window_state = window_state
+				if (window_state[0] eq 0)then $
+					window, 0, xs = 1024, ys = 512, xp = 10, yp = 500	
+					tv,bytscl(rebin(grid2,512,512),0,max_im_value)
+				plots,/dev,xstar/params.resolution,ystar/params.resolution,$
 					psym=4,col=255,thick=2
+			endif
 			h1 = set_limits(grid2, xstar, ystar, boxsize, params.resolution,$
 							xmin = xmin, ymin = ymin)
 			r1 = mpfit2dpeak(h1, a1)
@@ -194,9 +197,13 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 			h1 = set_limits(grid2, xstar, ystar, boxsize, params.resolution, $
 							xmin = xmin, ymin = ymin)
 			siz = size(h1)
-			tv,bytscl(rebin(h1,siz[1]*5, siz[2]*5), 0, max_im_value), 512, 0
-			print,"Width is ",a1[2], a1[3]
+			if (display ne 0)then begin
+				tv,bytscl(rebin(h1,siz[1]*5, siz[2]*5), 0, max_im_value), 512, 0
+				print,"Width is ",a1[2], a1[3]," Star pos: ",xstar, ystar
+			endif
 			ans = 'y'
+;Particularly if the star moves around a lot, we might want to look at
+;single frames
 			if (not(keyword_set(defaults)))then $
 				read,"Is this star ok (s for single frame; q to quit)? ", ans
 			if (ans eq 'd')then begin
@@ -255,9 +262,14 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 ;Loop through data to centroid
 	start_frame = params.min_frame
 	end_frame   = params.max_frame
+	time0 = systime(1)
 	for i=1l, ngrid - 1 do begin
-		print,i*nbin,ngrid*nbin,data_l2[i*nbin].time - data_l2[0].time,$
-				string(13b),format="(i7,i7,i10,a,$)"
+		str = string(i*nbin)
+		str = str + " S/C time: "
+		str = str + string(data_l2[i*nbin].time - data_l2[0].time)
+		str = str + " Time Left: "
+		str = str + string((systime(1) - time0)/float(i)*float(ngrid - i))
+		print,strcompress(str),	string(13b),format="(a,a,$)"
 		params.min_frame = start_frame + i*nbin
 		params.max_frame = params.min_frame + nbin - 1
 		dqi = where(data_l2[params.min_frame:params.max_frame].dqi eq 0,ndqi)
@@ -361,8 +373,9 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 		h1 = set_limits(grid2, xstar_first, ystar_first, boxsize, params.resolution)
 		r1 = mpfit2dpeak(h1, a1)
 		siz = size(h1, /dimensions)
-		tv,bytscl(rebin(h1, siz[0]*4,siz[1]*4),0,max_im_value),512,0
-		print,"New width is ",a1[2],a1[3]
+		if (display eq 1)then $
+			tv,bytscl(rebin(h1, siz[0]*4,siz[1]*4),0,max_im_value),512,0
+		print,"New width is ",a1[2],a1[3],"                "
 
 ;Update offsets
 		qbad = where((xoff le -1e6) or (yoff le -1e6),nqbad)

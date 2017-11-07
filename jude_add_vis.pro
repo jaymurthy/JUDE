@@ -40,7 +40,7 @@ pro jude_add_vis, data_dir, offset_dir, output_dir, $
 	device,window_state = window_state
 
 ;Search for all visible data files in the directory
-file=file_search(data_dir,"*.sav",count = nfiles)
+file=file_search(data_dir,"*.fits*",count = nfiles)
 print,"Total of ", nfiles," VIS files"
 if (keyword_set(overwrite) eq 0)then overwrite = 0
 	
@@ -48,18 +48,38 @@ if (keyword_set(overwrite) eq 0)then overwrite = 0
 if (n_elements(start_file) eq 0)then start_file = 0l
 for ifile = start_file, nfiles - 1 do begin
 
-;Check file existance
+;Check file existence
 	fname = file_basename(file(ifile))
-	t = output_dir + strmid(fname, 0, strlen(fname)-4)
-	tst = file_test(t+"*")
+	fpos  = strpos(fname, "fits")
+	fout = output_dir + strmid(fname, 0, fpos + 4)
+	tst_file = file_test(fout + "*")
+	
+;There are occasional memory issues so I check to make sure the 
+;file is readable
+		if ((tst_file eq 1) and (overwrite eq 0))then begin
+			if (file_test(fout) eq 1)then tfile = fout else $
+										  tfile = fout + ".gz"
+			im = mrdfits(tfile, 0, data_hdr, /silent, error_action =2)
+			catch, error_status
+;Remove the file if it is bad
+			if (n_elements(im) eq 1) then begin
+                spawn,"rm " + tfile
+                tst_file = 0
+            endif
+            catch,/cancel
+        endif
 
-	if ((tst eq 0) or (overwrite eq 1))then begin  
+	if ((tst_file eq 0) or (overwrite eq 1))then begin  
 		print,ifile,fname,string(13b),format="(i5,1x,a,a,$)"
-		restore,file(ifile)
+		vis_table = mrdfits(file(ifile), 1, vis_hdr,/silent)
+		grid = vis_table.grid
+		times = vis_table.times
 		nframes =n_elements(grid(0,0,*))
 	
 ;Read offsets
-		offset_file = offset_dir + strmid(fname, 0, strlen(fname)-4)+".offsets"
+		fpos = strpos(fname, ".fits")
+		fname = strmid(fname, 0, fpos)
+		offset_file = offset_dir + fname + ".offsets"
 		spawn,"wc -l "+ offset_file,str
 		noff = getwrd(str) - 1
 		if (noff gt 3)then begin
@@ -122,7 +142,7 @@ for ifile = start_file, nfiles - 1 do begin
 				endif
 			endfor
 			im=im/ngood
-			t = output_dir + strmid(fname, 0, strlen(fname)-4) + ".fits"
+			t = output_dir + fname + ".fits"
 			mkhdr, out_hdr, im
 			sxaddpar,out_hdr,"INSTRUME","UVIT"
 			sxaddpar,out_hdr,"DETECTOR", "VIS", "FUV, NUV, or Vis"
