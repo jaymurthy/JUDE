@@ -1,5 +1,5 @@
 pro jude_verify_files,dname
-print,"Verifying files"
+print,"Verifying VIS files"
 params = jude_params()
 do_over = 1
 while (do_over eq 1)do begin
@@ -56,6 +56,7 @@ while (do_over eq 1)do begin
 	if (do_over eq 1)then print,"Bad VIS files found: repeating"	
 endwhile
 
+print,"Verifying NUV files"
 do_over = 1
 while (do_over eq 1)do begin
 	do_over = 0
@@ -108,10 +109,11 @@ while (do_over eq 1)do begin
 	if (do_over eq 1)then print,"Bad NUV files found: repeating"	
 endwhile
 
+print,"Verifying FUV files"
 do_over = 1
 while (do_over eq 1)do begin
 	do_over = 0
-	files=file_search(params.def_nuv_dir + params.events_dir, "*.fits", count=nfiles)
+	files=file_search(params.def_fuv_dir + params.events_dir, "*.fits", count=nfiles)
 	if (nfiles gt 0)then begin
 		for ifile = 0, nfiles - 1 do spawn,"rm " + files[ifile]
 		do_over = 1
