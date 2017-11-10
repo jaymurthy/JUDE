@@ -20,6 +20,7 @@
 ;	JM: Mar. 27, 2017: Adding bad pixel masks (use_bad_pixel keyword).
 ;	JM: Apr. 09, 2017: Use the bad pixel mask always
 ;	JM: May  22, 2017: Version 3.1
+;	JM: Nov. 08, 2017: Explcitly free memory.
 ;COPYRIGHT
 ;Copyright 2016 Jayant Murthy
 ;
@@ -196,4 +197,7 @@ no_process:
 			free_lun,off_lun
 		endif
 	endfor
+delvar,vis_table
+delvar,g2
+delvar,grid
 end

@@ -19,6 +19,10 @@
 ;	JM: May  22, 2017:	V 3.1
 ;	JM: Sep. 15, 2017: Gzip files after creation.
 ;	JM: Oct. 19, 2017: Typo in gzipping files.
+;	JM: Nov.  8, 2017: Explicitly free memory
+;	JM: Nov.  9, 2017 : I don't want to repeat checks of the same file.
+;	JM: Nov.  9, 2017 : Assume all successful files are gzipped.
+
 ;COPYRIGHT
 ;Copyright 2016 Jayant Murthy
 ;
@@ -52,23 +56,8 @@ for ifile = start_file, nfiles - 1 do begin
 	fname = file_basename(file(ifile))
 	fpos  = strpos(fname, "fits")
 	fout = output_dir + strmid(fname, 0, fpos + 4)
-	tst_file = file_test(fout + "*")
+	tst_file = file_test(fout + ".gz");JUDE always produces gzipped files
 	
-;There are occasional memory issues so I check to make sure the 
-;file is readable
-		if ((tst_file eq 1) and (overwrite eq 0))then begin
-			if (file_test(fout) eq 1)then tfile = fout else $
-										  tfile = fout + ".gz"
-			im = mrdfits(tfile, 0, data_hdr, /silent, error_action =2)
-			catch, error_status
-;Remove the file if it is bad
-			if (n_elements(im) eq 1) then begin
-                spawn,"rm " + tfile
-                tst_file = 0
-            endif
-            catch,/cancel
-        endif
-
 	if ((tst_file eq 0) or (overwrite eq 1))then begin  
 		print,ifile,fname,string(13b),format="(i5,1x,a,a,$)"
 		vis_table = mrdfits(file(ifile), 1, vis_hdr,/silent)
@@ -156,8 +145,13 @@ for ifile = start_file, nfiles - 1 do begin
 			sxaddhist,"Copyright 2016 Jayant Murthy",out_hdr,/comment
 			sxaddhist,"http://www.apache.org/licenses/LICENSE-2.0",out_hdr,/comment
 			mwrfits, im, t, out_hdr, /create
-			spawn,"gzip -f " + t
+			spawn,"gzip -fv " + t
 		endif
 	endif
+
+	delvar,im
+	delvar,grid
+	delvar,vis_table
+
 endfor
 end

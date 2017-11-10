@@ -12,8 +12,12 @@
 ;	JM:	Sept 8, 2016
 ;	JM: May 23, 2017: Version 3.1
 ;	JM: Jun 27, 2017: Switched to tag_exist for structure testing.
-;	JM: Nov  7, 2017: Changed to FITS files from IDL save sets.
-;	JM: Nov  7, 2017: Speed improvements.
+;	JM: Nov. 7, 2017: Changed to FITS files from IDL save sets.
+;	JM: Nov. 7, 2017: Speed improvements.
+;	JM: Nov. 8, 2017: Freed memory
+;	JM: Nov.  9, 2017 : I don't want to repeat checks of the same file.
+;	JM: Nov.  9, 2017 : Assume all successful files are gzipped.
+
 ;COPYRIGHT
 ;Copyright 2016 Jayant Murthy
 ;
@@ -34,7 +38,7 @@ pro jude_read_vis, file, vis_dir, start_file = start_file, overwrite = overwrite
 ;Initialize variables
 	if (not(keyword_set(overwrite)))then overwrite = 0
 	if (n_elements(start_file) eq 0)then start_file = 0l
-
+	
 ;Search for all visible data files in the directory
 	nfiles = n_elements(file)
 	offname_save = "start"
@@ -49,21 +53,7 @@ time0 = systime(1)
 		fname = strmid(fname, 0, strpos(fname,".fits"))
 		fout = vis_dir + fname + "_" + string(ifile) + ".fits"
 		fout = strcompress(fout,/remove)
-		tst_file = file_test(fout+"*")
-;There are occasional memory issues so I check to make sure the 
-;file is readable
-		if ((tst_file eq 1) and (overwrite eq 0))then begin
-			if (file_test(fout) eq 1)then tfile = fout else $
-										  tfile = fout + ".gz"
-			im = mrdfits(tfile, 1, data_hdr, /silent, error_action =2)
-			catch, error_status
-;Remove the file if it is bad
-			if (n_elements(im) eq 1) then begin
-                spawn,"rm " + tfile
-                tst_file = 0
-            endif
-            catch,/cancel
-        endif
+		tst_file = file_test(fout+".gz");JUDE always produces gzipped files
 		if ((tst_file eq 0) or (overwrite eq 1))then begin
 		
 ;Read files
@@ -149,22 +139,18 @@ time0 = systime(1)
 				out_data[i].times = times[i]
 			endfor
 			mwrfits,out_data,fout
-			spawn,"gzip -f " + fout + " &"
+			if (ifile lt (nfiles - 5)) then begin
+				spawn,"gzip -f " + fout + " &"
+			endif else spawn,"gzip -f " + fout
+				
+;Explicitly release data
+delvar,grid
+delvar,out_data
+delvar,im
 		endif; We only do all this if the files already exist
 no_process:
 	str = "Time taken for file is " + string(systime(1) - time0) + " seconds"
-	print,strcompress(str)
-
+	print,strcompress(str)	
 	endfor
-	
-;Check to make sure the gzips are all finished
-	nzip = 10
-	while (nzip gt 0) do begin
-		fzip = file_search(vis_dir, "*.fits", count = nzip)
-		if (nzip gt 0)then begin
-			print,nzip," files waiting in the gzip queue",string(13b),$
-				  format="(i5, a, a, $)"
-			wait,10
-		endif	  
-	endwhile
+		
 end

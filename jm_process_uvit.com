@@ -18,9 +18,8 @@ jude_driver_vis,dname
 jude_driver_uv,dname,/nuv,/notime
 jude_driver_uv,dname,/fuv,/notime
 
-;Save the Level 2 files. These can be saved or deleted.
-spawn,"zip -rv fuv.zip fuv/*"
-spawn,"zip -rv nuv.zip nuv/*"
+;Identify and remove bad files.
+jude_verify_Files,dname
 
 ;Merge the data and run the automated registration. Should work in most cases.
 jude_uv_cleanup,/nuv

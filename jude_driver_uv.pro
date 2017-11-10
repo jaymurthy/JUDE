@@ -87,6 +87,9 @@
 ;	JM: Aug. 27, 2017 : Problem with ref_frame due to repeated calls.
 ;	JM: Aug. 28, 2017 : Was writing header improperly for second extension
 ;	JM: Nov.  7, 2017 : Reuse HK data between UV runs for speed increase.
+;	JM: Nov.  8, 2017 : Explicitly free memory.
+;	JM: Nov.  9, 2017 : I don't want to repeat checks of the same file.
+;	JM: Nov.  9, 2017 : Assume all successful files are gzipped.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -116,6 +119,7 @@ pro jude_driver_uv, data_dir,$
 	print,"Software version: ",version_date
 	hk_base = ""
 	
+	
 ;**************************INITIALIZATION**************************
 ;DATA_DIR is the top level directory containing all of the data files. I
 ;search for either fits or fits.* (implying .gz)
@@ -135,6 +139,7 @@ pro jude_driver_uv, data_dir,$
 		if (ans eq 2)then nuv = 1
 	endif
 	nfiles = JUDE_GET_FILES(data_dir, file, fuv = fuv, nuv = nuv)
+		
 	if (n_elements(start_file) eq 0) then start_file = 0
 	if (n_elements(end_file) eq 0)   then end_file   = nfiles - 1
 
@@ -182,40 +187,13 @@ time0 = systime(1)
 		png_name	= png_dir + fname + ".png"
 		image_name	= image_dir + fname + ".fits"
 		events_name = events_dir + fname + "_bin.fits"
-		tst_file = 1
-;Don't overwrite files unless explicitly told to.
-		if ((file_test(events_name + "*") eq 1) and $
-			(file_test(image_name  + "*") eq 1) and $
-			(overwrite eq 0))then begin
-;Make sure the events file is readable
-			if (file_test(events_name) eq 1)then tfile = events_name else $
-										  		 tfile = events_name + ".gz"
-			im = mrdfits(tfile, 1, data_hdr, /silent, error_action =2)
-			catch, error_status
-;Remove the file if it is bad
-			if (n_elements(im) eq 1) then begin
-				print,"Removing bad file " + tfile
-                spawn,"rm " + tfile
-                tst_file = 0
-            endif
-            catch,/cancel
-;Make sure the image_file is readable
-			if (file_test(image_name) eq 1)then tfile = image_name else $
-										  		tfile = image_name + ".gz"
-			im = mrdfits(tfile, 0, data_hdr, /silent, error_action =2)
-			catch, error_status
-;Remove the file if it is bad
-			if (n_elements(im) eq 1) then begin
-				print,"Removing bad file " + tfile
-                spawn,"rm " + tfile
-                tst_file = 0
-            endif
-            catch,/cancel
-            
-			if (tst_file eq 1)then begin
-				print,"Skipping " + fname,string(13b),format="(a, a, $)"
-				goto, no_process
-			endif
+;Don't overwrite files unless explicitly told to. Note that all
+;JUDE files will be gzipped if complete
+		if ((file_test(events_name + ".gz") eq 1) and $
+			(file_test(image_name  + ".gz") eq 1) and $
+			(overwrite eq 0))then begin           
+			print,"Skipping " + fname,string(13b),format="(a, a, $)"
+			goto, no_process
 		endif
 		obs_str = file[ifile]
 		orig_dir = file_dirname(file[ifile])
@@ -321,11 +299,11 @@ print,"Begin event processing",string(13b),format="(a, a, $)"
 		sxaddhist,fname, bout_hdr
 ;The calculated offsets are specific to the resolution. When I save them
 ;I renormalize them to a 512x512 array
-		temp = data_l2
-		temp.xoff = temp.xoff/params.resolution
-		temp.yoff = temp.yoff/params.resolution
-		mwrfits,temp,events_name,bout_hdr,/create,/no_comment
-
+		data_l2.xoff = data_l2.xoff/params.resolution
+		data_l2.yoff = data_l2.yoff/params.resolution
+		mwrfits,data_l2,events_name,bout_hdr,/create,/no_comment,/silent
+		data_l2.xoff = data_l2.xoff*params.resolution
+		data_l2.yoff = data_l2.yoff*params.resolution
 ;************************LEVEL 2 DATA *********************************
 ;If the Level 2 data exists, I don't have to go through the HK files again.
 ;The goal is to make the Level 2 data self-contained.
@@ -470,15 +448,17 @@ endif
 	else sxaddpar,out_hdr,"ORIGFILE",uvit_fname
 
 ;Write out the image followed by the exposure times
-	mwrfits,grid,image_name,out_hdr,/create
+	mwrfits,grid,image_name,out_hdr,/create,/silent
 	mkhdr, thdr, pixel_time,/image
 	if (keyword_set(notime))then begin
 		sxaddpar,thdr,"BUNIT","Nframes","Exposure map not applied"
 	endif else begin
 		sxaddpar,thdr,"BUNIT","s","Exposure map"
 	endelse
-	mwrfits,pixel_time,image_name,thdr
-	spawn,"gzip -f " + image_name
+	mwrfits,pixel_time,image_name,thdr,/silent
+	if (ifile lt (nfile - 5)) do begin
+		spawn,"gzip -f " + image_name + " &"
+	endif else spawn,"gzip -f " + image_name
 
 ;Observation log showing which file is associated with each original	
 	obs_str = obs_str + " " + image_name + ".gz" 
@@ -495,18 +475,29 @@ endif
 		sxaddpar,bout_hdr,"ORIGFILE",strmid(fname, 68, 69, /reverse_offset) $
 	else sxaddpar,bout_hdr,"ORIGFILE",fname
 
-	temp = data_l2
-	temp.xoff = temp.xoff/params.resolution
-	temp.yoff = temp.yoff/params.resolution
-	mwrfits,temp,events_name,bout_hdr,/create,/no_comment
-	spawn,"gzip -f " + events_name
-	obs_str = obs_str + " " + events_name + ".gz"	
+	data_l2.xoff = data_l2.xoff/params.resolution
+	data_l2.yoff = data_l2.yoff/params.resolution
+	mwrfits,data_l2,events_name,bout_hdr,/create,/no_comment,/silent
+	data_l2.xoff = data_l2.xoff*params.resolution
+	data_l2.yoff = data_l2.yoff*params.resolution
+	if (ifile lt (nfiles -5))then begin
+		spawn,"gzip -f " + events_name + " &"
+	endif else spawn,"gzip -f " + events_name + " &"
+	obs_str = obs_str + " " + events_name + ".gz" 
 ;Write file log
 	printf,obs_lun,obs_str
 no_process:
 if (keyword_set(debug))then stop
 	str = "Time taken for file is " + string(systime(1) - time0) + " seconds"
 	print,strcompress(str)
+	
+;Release memory back to the system
+delvar,data_l2
+delvar,grid
+delvar,pixel_time
+delvar,data_l1a
+delvar,data_l1
+
 endfor
 free_lun,obs_lun
 
