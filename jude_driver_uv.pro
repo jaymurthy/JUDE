@@ -456,7 +456,7 @@ endif
 		sxaddpar,thdr,"BUNIT","s","Exposure map"
 	endelse
 	mwrfits,pixel_time,image_name,thdr,/silent
-	if (ifile lt (nfile - 5)) do begin
+	if (ifile lt (nfile - 5)) then begin
 		spawn,"gzip -f " + image_name + " &"
 	endif else spawn,"gzip -f " + image_name
 
