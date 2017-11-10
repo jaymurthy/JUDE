@@ -456,7 +456,7 @@ endif
 		sxaddpar,thdr,"BUNIT","s","Exposure map"
 	endelse
 	mwrfits,pixel_time,image_name,thdr,/silent
-	if (ifile lt (nfile - 5)) then begin
+	if (ifile lt (nfiles - 5)) then begin
 		spawn,"gzip -f " + image_name + " &"
 	endif else spawn,"gzip -f " + image_name
 
@@ -480,7 +480,7 @@ endif
 	mwrfits,data_l2,events_name,bout_hdr,/create,/no_comment,/silent
 	data_l2.xoff = data_l2.xoff*params.resolution
 	data_l2.yoff = data_l2.yoff*params.resolution
-	if (ifile lt (nfiles -5))then begin
+	if (ifile lt (nfiles - 5))then begin
 		spawn,"gzip -f " + events_name + " &"
 	endif else spawn,"gzip -f " + events_name + " &"
 	obs_str = obs_str + " " + events_name + ".gz" 

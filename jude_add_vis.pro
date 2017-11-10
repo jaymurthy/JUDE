@@ -145,7 +145,7 @@ for ifile = start_file, nfiles - 1 do begin
 			sxaddhist,"Copyright 2016 Jayant Murthy",out_hdr,/comment
 			sxaddhist,"http://www.apache.org/licenses/LICENSE-2.0",out_hdr,/comment
 			mwrfits, im, t, out_hdr, /create
-			spawn,"gzip -fv " + t
+			spawn,"gzip -f " + t + " &"
 		endif
 	endif
 
