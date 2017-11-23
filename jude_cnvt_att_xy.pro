@@ -1,4 +1,4 @@
-function jude_cnvt_att_xy, data, hdr, xoff, yoff, params = params
+function jude_cnvt_att_xy, hdr, xoff, yoff, params = params
 ;+
 ;  NAME:
 ;		JUDE_CNVT_ATT_XY
@@ -35,6 +35,7 @@ function jude_cnvt_att_xy, data, hdr, xoff, yoff, params = params
 ;		JM: May  23, 2017: Version 3.1
 ;		JM: Jul.  3, 2017: Changed loop from integer to long
 ;		JM: Aug. 17, 2017: In cases, xoff and yoff were passed as integers not arrays.
+;		JM: Nov. 21, 2017: Switched to Common Blocks
 ; COPYRIGHT:
 ;Copyright 2016 Jayant Murthy
 ;
@@ -55,6 +56,9 @@ function jude_cnvt_att_xy, data, hdr, xoff, yoff, params = params
 	exit_success = 1
 	exit_failure = 0
 	max_time_skip = 1
+;Note that DATA_L2 is renamed as DATA
+	COMMON DATA_VARS, DATA_L1, DATA_L1A, DATA
+
 
 START_PROGRAM:				   
 ;Initialize variables

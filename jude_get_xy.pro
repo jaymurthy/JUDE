@@ -38,6 +38,7 @@
 ;	JM: Aug 21, 2016: Add filter information to files.
 ;	JM: May 23, 2017: Version 3.1
 ;	JM: Jul 21, 2017: Added RA and DEC to Level 2 data format.
+;	JM: Nov 21, 2017: Switched to common variables
 ; COPYRIGHT:
 ;Copyright 2016 Jayant Murthy
 ;
@@ -78,13 +79,16 @@ function extract_coord,c1, c2, parity
 	return,x
 end
 
-function jude_get_xy,data_l1, data_l1a, data_l2, out_hdr
+function jude_get_xy, out_hdr
 
 ;******************** Initialize Variables ******************************
 ;  I limit to  1000 events in a frame. If there are more
 ;  I print an error and continue
 	nevents = 1000
 	ncent = 336; Maximum number of counts in one frame: Level 1 format
+	COMMON HK_VARS, HK, ATT
+	COMMON DATA_VARS, DATA_L1, DATA_L1A, DATA_L2
+
 	
 	nelems = n_elements(data_l1)
 	data_l2 = {uvit_l2, frameno:0l, 		$	;Frame number

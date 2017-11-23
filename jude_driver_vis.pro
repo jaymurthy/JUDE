@@ -28,6 +28,7 @@
 ;	JM: Dec. 11, 2016 : Driver program for VIS files
 ;	JM: May  23, 2017 : Version 3.1
 ;	JM: Jun  29, 2017 : Added overwrite option.
+;	JM: Nov. 17, 2017 : Added check for JUDE_VERIFY_FILES_DONE.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -54,6 +55,13 @@ pro jude_driver_vis, data_dir,$
 	exit_failure = 0
 	version_date = "May 23, 2017"
 	print,"Software version: ",version_date
+
+;Do not do anything if we've already finished the Level 1 processing
+if (file_test("JUDE_VERIFY_FILES_DONE"))then begin
+	print,"Already completed Level 1 processing"
+	print,"Delete JUDE_VERIFY_FILES_DONE if you really want to reprocess"
+	goto, done
+endif
 	
 ;**************************INITIALIZATION**************************
 ;DATA_DIR is the top level directory containing all of the data files. I

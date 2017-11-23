@@ -15,7 +15,15 @@ dname = "/Volumes/UVIT_Data/uvit/Level1" + strmid(a[0], 26)
 jude_driver_vis,dname
 
 ;Process the UV files
+tst = file_search("nuv/images/","*.fits",count=nf)
+if (nf gt 0)then spawn,"gzip -f nuv/images/*.fits"
+tst = file_search("nuv/events/","*.fits",count=nf)
+if (nf gt 0)then spawn,"gzip -f nuv/events/*.fits"
 jude_driver_uv,dname,/nuv,/notime
+tst = file_search("fuv/images/","*.fits",count=nf)
+if (nf gt 0)then spawn,"gzip -f fuv/images/*.fits"
+tst = file_search("fuv/events/","*.fits",count=nf)
+if (nf gt 0)then spawn,"gzip -f fuv/events/*.fits"
 jude_driver_uv,dname,/fuv,/notime
 
 ;Identify and remove bad files.

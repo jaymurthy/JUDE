@@ -90,6 +90,8 @@
 ;	JM: Nov.  8, 2017 : Explicitly free memory.
 ;	JM: Nov.  9, 2017 : I don't want to repeat checks of the same file.
 ;	JM: Nov.  9, 2017 : Assume all successful files are gzipped.
+;	JM: Nov. 16, 2017 : Skip processing if JUDE_VERIFY_FILES_DONE exists.
+;	JM: Nov. 21, 2017 : Switch to Common Blocks for the Level 1 files.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -110,7 +112,10 @@ pro jude_driver_uv, data_dir,$
 	fuv = fuv, nuv = nuv, $
 	start_file = start_file, end_file = end_file,$
 	stage2 = stage2, debug = debug, diffuse = diffuse, notime = notime,$
-	overwrite = overwrite		
+	overwrite = overwrite
+	
+COMMON HK_VARS, HK, ATT
+COMMON DATA_VARS, DATA_L1, DATA_L1A, DATA_L2
 
 ;Define bookkeeping variables
 	exit_success = 1
@@ -119,6 +124,12 @@ pro jude_driver_uv, data_dir,$
 	print,"Software version: ",version_date
 	hk_base = ""
 	
+;Do not do anything if we've already finished the Level 1 processing
+if (file_test("JUDE_VERIFY_FILES_DONE"))then begin
+	print,"Already completed Level 1 processing"
+	print,"Delete JUDE_VERIFY_FILES_DONE if you really want to reprocess"
+	goto, already_done
+endif
 	
 ;**************************INITIALIZATION**************************
 ;DATA_DIR is the top level directory containing all of the data files. I
@@ -250,7 +261,7 @@ time0 = systime(1)
 ;Those observations which don't have one may indicate incomplete Level 1 files.
 ;Because of concerns about whether this is a valid check or not, I now process
 ;anyway but note if the BOD is present.
-		check_bod = JUDE_CHECK_BOD(data_l1,data_l1a)
+		check_bod = JUDE_CHECK_BOD()
 		if (check_bod eq exit_failure)then begin
 			JUDE_ERR_PROCESS,error_file,"No BOD in file"
 			print,"No BOD in file"
@@ -264,7 +275,7 @@ time0 = systime(1)
 		
 ;******************************HOUSEKEEPING and ATTITUDE*********************
 		print,"Begin HK",string(13b),format="(a, a, $)"
-		success  = JUDE_READ_HK_FILES(data_dir, file(ifile), data_hdr0, hk, att, $
+		success  = JUDE_READ_HK_FILES(data_dir, file(ifile), data_hdr0, $
 									  out_hdr, hk_base = hk_base)
 		if (success eq exit_failure)then begin
 			JUDE_ERR_PROCESS,error_file,"No housekeeping data in file"
@@ -273,7 +284,7 @@ time0 = systime(1)
 		endif
 
 ;*********************************DATA VALIDATION**************************
-		success = JUDE_SET_DQI(data_hdr0, data_l1, data_l1a, hk, att,out_hdr)
+		success = JUDE_SET_DQI(data_hdr0, out_hdr)
 		if (success eq 0)then begin
 				JUDE_ERR_PROCESS,error_file,"Problem in jude_set_dqi"
 				goto,no_process
@@ -282,9 +293,9 @@ time0 = systime(1)
 ;********************************PHOTON EVENTS*****************************
 ;First extract photons and then get pointing offsets
 print,"Begin event processing",string(13b),format="(a, a, $)"
-		success = JUDE_GET_XY(data_l1, data_l1a, data_l2, out_hdr)
+		success = JUDE_GET_XY(out_hdr)
 		par = params
-		success = JUDE_CNVT_ATT_XY(data_l2, out_hdr, xoff_sc, yoff_sc,$
+		success = JUDE_CNVT_ATT_XY(out_hdr, xoff_sc, yoff_sc,$
 					params = par)
 		if (success eq 0)then begin
 			JUDE_ERR_PROCESS,error_file,"No attitude information from spacecraft"
@@ -500,5 +511,5 @@ delvar,data_l1
 
 endfor
 free_lun,obs_lun
-
+already_done:
 end

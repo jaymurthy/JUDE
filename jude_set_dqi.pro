@@ -4,10 +4,10 @@
 ; CALLING SEQUENCE:
 ;	success = jude_set_dqi(data_hdr, data_l1, data_l1a, hk, att, out_hdr)
 ; INPUTS
-;	data_hdr	: Level 1 data file header
-;	data_l1		: Level 1 data file. Format from mrdfits
-;	hk			: Housekeeping file from read_hk_file
-;	att			: Attitude file from read_att_File
+;	data_hdr	: Level 1 data header
+;	data_l1		: Level 1 data. Format from mrdfits
+;	hk			: Housekeeping data from read_hk_file
+;	att			: Attitude data from read_hk_file
 ; OUTPUTS:
 ;	data_l1a	: structure containing:
 ;					time	:	Double
@@ -35,6 +35,7 @@
 ;	JM: Aug. 02, 2016: New DQI codes
 ;	JM: Aug. 21, 2016: Added filter information
 ;	JM:	May  23, 2017: Version 3.1
+;	JM: Nov. 21, 2017: Changed to using common blocks
 ; COPYRIGHT:
 ;Copyright 2016 Jayant Murthy
 ;
@@ -71,8 +72,10 @@ pro set_hk, time_in, time_out, filter_in, filter_out, $
 	endelse
 end
 		
-function jude_set_dqi, data_hdr, data_l1, data_l1a, hk, att, out_hdr
+function jude_set_dqi, data_hdr, out_hdr
 
+	COMMON HK_VARS, HK, ATT
+	COMMON DATA_VARS, DATA_L1, DATA_L1A, DATA_L2
 	exit_success = 1
 	exit_failure = 0
 	nelems = n_elements(data_l1)
@@ -231,5 +234,7 @@ filter_dqi = 32
 	endfor;ielem line 134
 	sxaddhist, "READ_SET_DQI Version 1.0", out_hdr
 
+hk_new = 0
+att_new = 0
 return,exit_success
 end

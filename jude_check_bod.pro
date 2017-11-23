@@ -1,4 +1,5 @@
-function jude_check_bod, data_l1, data_l1a
+function jude_check_bod
+COMMON DATA_VARS, DATA_L1, DATA_L1A, DATA_L2
 
 ; Every observation has to start with a bright object detection
 ; The frame count increases monotonically at the beginning and
@@ -8,6 +9,7 @@ function jude_check_bod, data_l1, data_l1a
 ; July 22, 2016: JM Modified frame count.
 ; July 31, 2016: JM Changed GTI to DQI
 ; May  23, 2017: JM: Version 3.1
+; Nov. 21, 2017: JM Switched to common variable
 ;Note that there is an offset of 32768 in the frame count to keep it integer.
 	frame = data_l1a.frameno
 	exit_success = 1

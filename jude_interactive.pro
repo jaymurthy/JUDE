@@ -66,6 +66,26 @@
 ;Defaults = 2: Don't run centroid
 ;Defaults = 4: Use VIS offsets.
 
+function set_limits_inter, grid2, xstar, ystar, boxsize, resolution,$
+					 xmin = xmin, ymin = ymin
+	siz = size(grid2)
+	ndim = siz[1]
+	xmin = xstar - boxsize*resolution
+	xmax = xstar + boxsize*resolution
+	ymin = ystar - boxsize*resolution
+	ymax = ystar + boxsize*resolution
+
+	xmin = 0 > xmin < (ndim - 1)
+	xmax = (xmin + 1) > xmax < (ndim - 1)
+	ymin = 0 > ymin < (ndim - 1)
+	ymax = (ymin + 1) > ymax < (ndim - 1)
+	if (((xmax - xmin) lt 5) or ((ymax - ymin) lt 5)) then begin
+		h1 = fltarr(2*boxsize*resolution, 2*boxsize*resolution)
+	endif else h1 = grid2[xmin:xmax, ymin:ymax]
+	return,h1
+end
+
+
 pro uv_or_vis, xoff_vis, yoff_vis, xoff_uv, yoff_uv, xoff_sc, yoff_sc, dqi
 
 		print,"Do you want to use visible offsets; default is UV? :"
@@ -251,6 +271,17 @@ pro plot_diagnostics, data_l2, offsets, data_hdr0, im_hdr, fname, grid, $
 	print,str
 	tv,bytscl(rebin(grid, 512, 512), 0, max_im_value)
 	
+	if (n_elements(im_hdr) gt 0)then begin
+		xstar = sxpar(data_hdr0, "XCENT", count = nxstar)
+		ystar = sxpar(data_hdr0, "YCENT", count = nystar)
+		xstar = xstar*params.resolution
+		ystar = ystar*params.resolution
+		if ((nxstar gt 0) and (nystar gt 0))then begin
+			h1 = set_limits_inter(grid, xstar, ystar, 10, params.resolution)
+			r1 = mpfit2dpeak(h1, a1)
+			print,"width of star is: ",a1[2],a1[3]	
+		endif
+	endif
 end
 
 pro jude_interactive, data_file, uv_base_dir, data_l2, grid, offsets, params = params, $

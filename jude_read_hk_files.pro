@@ -1,5 +1,5 @@
 ;+
-; NAME:		READ_HK_FILES
+; NAME:		JUDE_READ_HK_FILES
 ; PURPOSE:	Read housekeeping and attitude files associated with image files
 ; CALLING SEQUENCE:
 ;	success = read_hk_files(data_dir, file, data_hdr, hk_out, att_out, out_hdr)
@@ -27,6 +27,7 @@
 ;	JM: Jul 13, 2016: Comments cleaned up
 ;	JM: Aug 30, 2016: Changed time from float to double
 ;	JM: May 23, 2017: Version 3.1
+;	JM: Nov 21, 2017: Switched to common variables
 ; COPYRIGHT:
 ;Copyright 2016 Jayant Murthy
 ;
@@ -43,7 +44,7 @@
 ;   limitations under the License.
 ;-
 
-function jude_read_hk_files, data_dir, file, data_hdr, hk_out, att_out, $
+function jude_read_hk_files, data_dir, file, data_hdr, $
 							out_hdr, hk_base = hk_base
 
 ;Define exit variables
@@ -51,9 +52,12 @@ function jude_read_hk_files, data_dir, file, data_hdr, hk_out, att_out, $
     exit_failure = 0
     version = 1.0
 
+;Note Common Block Variables renamed
+COMMON HK_VARS, HK_OUT, ATT_OUT
+
 ;Define structures to hold important variables from HK and attitude files
-    hk = {hk, time:0d, filter:0., cath_volt:0., anode_volt:0., mcp_volt:0.}
-    att = {att, time:0d, roll_ra:0d, roll_dec:0d, roll_rot:0d}
+    hk_struct = {hk, time:0d, filter:0., cath_volt:0., anode_volt:0., mcp_volt:0.}
+    att_struct = {att, time:0d, roll_ra:0d, roll_dec:0d, roll_rot:0d}
 
 ;I should know the detector to read the right keywords
 	detector = strcompress(sxpar(data_hdr, "detector"),/remove)
@@ -82,7 +86,7 @@ function jude_read_hk_files, data_dir, file, data_hdr, hk_out, att_out, $
 			hk_hdr1 = headfits(hk_file[ihk], exten = 1)
 			nhk_in = nhk_in + sxpar(hk_hdr1, "NAXIS2")
 		endfor
-		hk_out = replicate(hk, nhk_in)
+		hk_out = replicate(hk_struct, nhk_in)
 		istart = 0l
 
 ;Read HK files if they exist. The data are in the 1st extension but
@@ -137,7 +141,7 @@ function jude_read_hk_files, data_dir, file, data_hdr, hk_out, att_out, $
 			att_hdr1 = headfits(att_file[iatt], exten = 1)
 			natt_in = natt_in + sxpar(att_hdr1, "NAXIS2")
 		endfor
-		att_out = replicate(att, natt_in)
+		att_out = replicate(att_struct, natt_in)
 		istart = 0l
 
 ;Loop through attitude files
@@ -155,6 +159,8 @@ function jude_read_hk_files, data_dir, file, data_hdr, hk_out, att_out, $
     s = sort(att_out.time)
     att_out = att_out(s)
     sxaddhist, "READ_HK_FILES Version 1.0", out_hdr
+    hk_in = 0
+    att_in = 0
 return,exit_success
 end
 

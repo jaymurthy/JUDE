@@ -5,7 +5,7 @@
 ;	jude_vis_shifts, data_dir, offset_dir, start_file = start_file, $
 ;	end_file = end_file, interactive = interactive, overwrite = overwrite
 ; INPUTS:
-;	data_dir	: Location of visible save sets
+;	data_dir	: Location of VIS data
 ;	offset_dir	: Directory where offset files should be written
 ; KEYWORDS:
 ;	START_FILE  : In case I don't want to start from the first file.
@@ -21,6 +21,8 @@
 ;	JM: Apr. 09, 2017: Use the bad pixel mask always
 ;	JM: May  22, 2017: Version 3.1
 ;	JM: Nov. 08, 2017: Explcitly free memory.
+;	JM: Nov. 19, 2017: Assume that all input files are gzipped.
+;	JM: Nov. 21, 2017: Set variables to 0 rather than delvar.
 ;COPYRIGHT
 ;Copyright 2016 Jayant Murthy
 ;
@@ -42,7 +44,7 @@ pro jude_vis_shifts, data_dir, offset_dir, start_file = start_file, $
 	device,window_state = window_state
 
 ;Search for all visible data files in the directory
-	file=file_search(data_dir,"*.fits*",count=nfiles)
+	file=file_search(data_dir,"*.fits.gz",count=nfiles)
 	print,"Total of ", nfiles," VIS files"
 	offname_save = "start"
 	if (file_test(offset_dir) eq 0)then spawn,"mkdir " + offset_dir
@@ -197,7 +199,8 @@ no_process:
 			free_lun,off_lun
 		endif
 	endfor
-delvar,vis_table
-delvar,g2
-delvar,grid
+;Free memory
+vis_table = 0
+g2 = 0
+grid = 0
 end
