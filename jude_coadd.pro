@@ -36,7 +36,7 @@
 ;   limitations under the License.
 ;-
 
-pro common_grid, input_dir, output_file, ra_cent, dec_cent, fov,$
+pro jude_coadd, input_dir, output_file, ra_cent, dec_cent, fov,$
 				pixel_size = pixel_size, out_dir = out_dir
 
 ;The files to be added are all in input_files
