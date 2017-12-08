@@ -35,26 +35,44 @@
 
 ;************************* READ_SIMBAD_STARS ***********************
 ;If I have a list of stars from Simbad, I use that.
-function read_simbad_stars, names, ra, dec, stype, mag, xtest, ytest, ztest
+function read_simbad_stars, sim_file_name, names, ra, dec, stype, mag, xtest, ytest, ztest
 
-;If I enter this script into Simbad, I will get a list of stars around my
-;specified position. The first few lines have to be deleted. 
-;****************************Sample Simbad Script *******************
-;format object form1 "%IDLIST(1) : %COO(d2;C) : %OTYPE(S) : %FLUXLIST(B;F) "
-;set radius 20m
-;query coo 198.315d -19.53d
-;format displa
-;********DELETE the first few lines until the start of the data
-;**********************************************************************
+;Read stars from simbad using the file I've already created. 
+;The default name is sim-script, if it doesn't exist, I ask what to do
+	sim_file_name = 'sim-script'
+	if (file_test(sim_file_name) eq 0)then begin
+		print,"Default Simbad list doesn't exist. You have the option to create a new list"
+		print,"Please go to the following URL: http://simbad.u-strasbg.fr/simbad/sim-fscript"
+		print,"and enter the following commands in the box. Save the resulting output"
+		print,"as sim-script."
+		print, $
+			'format object form1 "%IDLIST(1) : %COO(d2;C) : %OTYPE(S) : %FLUXLIST(B;F) "'
+		print, 'set radius 60m'
+		print, 'query coo ' + strcompress(ra_cent,/rem)  + 'd' + $
+								  strcompress(dec_cent,/rem) + 'd'
+		print, 'format display'
+		sim_file_name = 'sim-script'
+		while(file_test(sim_file_name) eq 0) do begin
+			read, 'Enter file name (Default is sim-script): ', sim_file_name
+			if (sim_file_name eq '')then sim_file_name = 'sim-script.txt'
+		endwhile
+	endif
+
 ;Read stars from the Simbad text file
-	spawn,"wc -l simbad.csv",str
+	spawn,"wc -l " + sim_file_name,str
 	wrds = strsplit(str, /extract)
 	nstars = long(wrds[0])
 	stars = strarr(nstars)
-	openr,1,"simbad.csv"
+	openr,1,sim_file_name
 		readf,1,stars
 	close,1
-	
+
+;In the default Simbad file, the first few lines should be rejected and the 
+;last line is blank
+	i = 0
+	while (strmid(stars[i],0,6) ne '::data')do i = i + 1
+	stars = stars[i+2:nstars - 2]
+	nstars = nstars - i - 3
 ;Variables for the Simbad stars
 	names = strarr(nstars)
 	ra    = dblarr(nstars)
@@ -190,7 +208,8 @@ pro plot_simbad, ref_file,  refra, refdec, refx, refy, ref_max_value = ref_max_v
 		ad2xy, refra, refdec, ref_astr, refxp, refyp
 	endif else begin
 		find_point_sources, ref_im, refxp, refyp, reffp, ref_max_value, 0, 0
-		xy2ad, refxp, refyp, ref_astr, refra, refdec
+stop
+xy2ad, refxp, refyp, ref_astr, refra, refdec
 	endelse
 	nrefpoints = n_elements(refxp)
 		tv,bytscl(rebin(ref_im,512,512), 0, ref_max_value),512,0

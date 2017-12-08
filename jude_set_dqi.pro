@@ -36,6 +36,7 @@
 ;	JM: Aug. 21, 2016: Added filter information
 ;	JM:	May  23, 2017: Version 3.1
 ;	JM: Nov. 21, 2017: Changed to using common blocks
+;	JM: Nov. 27, 2017: Was throwing away too much data from filter/frame checks.
 ; COPYRIGHT:
 ;Copyright 2016 Jayant Murthy
 ;
@@ -150,14 +151,28 @@ function jude_set_dqi, data_hdr, out_hdr
 	old_time = 0
 	frame = data_l1a.frameno
 
+;Get the filter
+	hist_f = histogram(hk_new.filter, min = 0, bin = 1)
+	max_filt = where(hist_f eq max(hist_f))
+	max_filt = max_filt[0]
+	q  = where(abs(max_filt - filter_angle) lt filter_fuzz, nq)
+	q = q[0]
+	nom_filter_angle = filter_angle[q]
+	nom_filter = filter[q]
+	sxaddpar,out_hdr,"FILTER", nom_filter,$
+			"F0=closed, F1,F2..Fn(n=1-7 for FUV, NUV; n=1-5"
+	filter_dqi = 32
+
 ;********************************BEGIN PROCESSING*************************
+	q = where(data_l1a.dqi eq 0, nq)
 	old_frame = 0
+	if (nq gt 0)then old_frame = data_l1a[min(q)].frameno
 	for ielem = 0l, nelems - 1 do begin
 		if (data_l1a[ielem].dqi eq 0)then begin
 ;We only have to check if the data are good
 		
 ;If the frame count goes backwards I mark the data bad.
-			if (frame[ielem] lt old_frame)then begin
+			if ((frame[ielem] lt old_frame) or (frame[ielem] gt (old_frame + 10)))then begin
 				dqi_value = 16 ;Frame goes backwards
 				data_l1a[ielem].dqi = data_l1a[ielem].dqi + dqi_value
 				str = "Frame goes backward at frame " + string(ielem)
@@ -173,43 +188,20 @@ function jude_set_dqi, data_hdr, out_hdr
 				data_l1a[ielem].dqi = data_l1a[ielem].dqi + $
 									dqi_value	;If I don't find a match
 			endif
-filter_dqi = 32
 
 ;***************************FILTER CHECK******************************
 ;Check to make sure that the actual filter is the same as the recorded filter.
-;Isn't it crazy to have to check this but necessary because the Level 1 data
-;is sometimes wrong. However, I only want to check it once because I want
-;all the data in file to be from the same filter. Thus I mark the data before 
-;the first filter "change" as bad.
 			data_l1a[ielem].filter = hk_new[index0].filter
 			if ((abs(hk_new(index0).filter - nom_filter_angle) gt filter_fuzz) or $
 				(abs(hk_new(index1).filter - nom_filter_angle) gt filter_fuzz))then begin
-				q  = where(abs(hk_new[index0].filter - filter_angle) lt filter_fuzz, nq)
-				q1 = where(abs(hk_new[index1].filter - filter_angle) lt filter_fuzz, nq1)
-				if ((nq eq 0) or (nq1 eq 0))then begin
 					dqi_value = filter_dqi
-				endif else if (filter_change eq 0)then begin
-					dqi_value = filter_dqi
-					q = where (abs(hk_new(index1).filter - filter_angle) lt filter_fuzz)
-					nom_filter_angle = hk_new(index0).filter
-					nom_filter = filter(q[0])
-					sxaddpar,out_hdr,"FILTER", nom_filter,$
-						"F0=closed, F1,F2..Fn(n=1-7 for FUV, NUV; n=1-5"
-					str = "Changing filter to " + strcompress(string(nom_filter))
-					str = str +  " at time " + string(long(data_l1[ielem].time))
-					str = strcompress(str)
-					jude_err_process,"errors.txt", str
-					filter_change = 1
-					data_l1a[0:ielem].dqi = data_l1a[0:ielem].dqi + $
+					data_l1a[ielem].dqi = data_l1a[ielem].dqi + $
 								dqi_value ;Set DQI before first filter change
-				endif else begin
 					str = "Ignoring data because filter angle is now  " + $
 					strcompress(string(hk_new[index1].filter))
 					str = str +  " at time " + string(long(data_l1[ielem].time))
 					str = strcompress(str)
 					jude_err_process,"errors.txt", str
-					data_l1a(ielem).dqi = data_l1a(ielem).dqi + dqi_value
-				endelse
 			endif
 	
 ;*******************************VOLTAGE CHECK***************************

@@ -55,6 +55,7 @@
 ;JM: Aug. 21, 2017: Fixed an inconsistency in passing offsets
 ;JM: Sep. 14, 2017: Fixed problem if the offsets were not defined.
 ;JM: Nov.  7, 2017: Cosmetic changes.
+;JM: Nov. 25, 2017: Correct if a1 was not finite.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -192,8 +193,11 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 			h1 = set_limits(grid2, xstar, ystar, boxsize, params.resolution,$
 							xmin = xmin, ymin = ymin)
 			r1 = mpfit2dpeak(h1, a1)
-			xstar = xmin + a1[4]
-			ystar = ymin + a1[5]
+			if (finite(a1[4]) and finite(a1[5]))then begin
+				xstar = xmin + a1[4]
+				ystar = ymin + a1[5]
+			endif
+				
 			h1 = set_limits(grid2, xstar, ystar, boxsize, params.resolution, $
 							xmin = xmin, ymin = ymin)
 			siz = size(h1)

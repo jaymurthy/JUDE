@@ -1,18 +1,16 @@
 ;+
-; NAME:		JUDE_MATCH_VIS_OFFSETS
+; NAME:		JUDE_MATCH_NUV_OFFSETS
 ; PURPOSE:	Read all visible data files in directory
 ; CALLING SEQUENCE:
-;	jude_match_vis_offsets, uv_events_dir, vis_offset_dir
+;	jude_match_nuv_offsets, uv_events_dir, vis_offset_dir
 ; INPUTS:
-;	uv_events_dir	: Contains Level 2 files
-;	vis_offset_dir	: Contains visible offsets
+;	nuv_events_dir	: Contains Level 2 files
+;	fuv_events_dir	: Contains fuv files to be overwritte
+;	fuv_images_dir	: FUV image files to be written
 ; OUTPUTS:
 ;	FITS binary tables are written. Original Level 2 files are overwritten.
 ;MODIFICATION HISTORY
-;	JM:	Sept 11, 2016
-;	JM: Oct. 28, 2016 : Array was incorrectly typecast as int.
-;	JM: Apr. 12, 2016 : Crashed if there were no VIS files.
-;	JM: May  23, 2017 : Version 3.1
+;	JM: Nov. 24, 2017 : 
 ;COPYRIGHT
 ;Copyright 2016 Jayant Murthy
 ;
@@ -48,14 +46,23 @@ function read_offset_file, offset_file, times, xoff, yoff
 	endelse
 end
 
-pro jude_match_nuv_offsets, nuv_events_dir, fuv_events_dir
+pro jude_match_nuv_offsets, nuv_events_dir, fuv_events_dir, fuv_images_dir, params = params
 
+;Parameters
+	if (n_elements(params) eq 0)then params = jude_params()
+	
 ;File definitions
+	if (n_elements(nuv_events_dir) eq 0)then $
+		nuv_events_dir = params.def_nuv_dir + params.events_dir
+	if (n_elements(fuv_events_dir) eq 0)then $
+		fuv_events_dir = params.def_fuv_dir + params.events_dir
+	if (n_elements(fuv_images_dir) eq 0)then $
+		fuv_images_dir = params.def_fuv_dir + params.image_dir
 	nuv_files 	= file_search(nuv_events_dir, "*", count = nuvfiles)
 	fuv_files 	= file_search(fuv_events_dir, "*", count = fuvfiles)
 	if ((nuvfiles eq 0) or (fuvfiles eq 0))then goto,nodata
 
-;Read visible offsets from the files.
+;Read NUV offsets from the files.
 	nuv_start = dblarr(nuvfiles)	;Starting time in each file
 	nuv_end	  = dblarr(nuvfiles)	;Ending time in each file
 	ielem     = 0l
@@ -94,8 +101,8 @@ pro jude_match_nuv_offsets, nuv_events_dir, fuv_events_dir
 		itime = 0
 
 ;Match the NUV offsets to the FUV using the time.
-;Pick different cases depending on how the UV time compares
-;to the VIS
+;Pick different cases depending on how the FUV time compares
+;to the NUV
 		for inuv = 0, nuvfiles - 1 do begin
 			if ((fuv_mintime ge nuv_start[inuv]) and $
 				(fuv_maxtime le nuv_end[inuv])) then begin
@@ -120,9 +127,6 @@ pro jude_match_nuv_offsets, nuv_events_dir, fuv_events_dir
 		endfor
 			
 		tst_times = abs(fuv_mintime - nuv_start)
-		print,ifile,tst_times[itime],match_time
-		print,long([fuv_mintime,fuv_maxtime,nuv_start[itime],nuv_end[itime]])
-
 ;As long as the time is matched somewhere, we begin the loop.
 		if (match_time gt 0)then begin
 		
@@ -154,7 +158,7 @@ pro jude_match_nuv_offsets, nuv_events_dir, fuv_events_dir
 				fuvdata.xoff = (xoff*cos(ang/!radeg) - yoff*sin(ang/!radeg))
 				fuvdata.yoff = -(xoff*sin(ang/!radeg) + yoff*cos(ang/!radeg))
 
-;If there is no NUV offsets we set offsets unreliable.				
+;If there are no NUV offsets we set the offsets as unknown.				
 				ielem = 0l
 				while ((fuvdata[ielem].time lt min(nuv_times)) and $
 						(ielem lt nelems)) do begin
@@ -169,19 +173,57 @@ pro jude_match_nuv_offsets, nuv_events_dir, fuv_events_dir
 					ielem = ielem - 1
 				endwhile
 			endif
-		endif
 		
 ;Write the data out. The files are still uncompressed.
-		nrows = n_elements(fuvdata)
-		fxbhmake,bout_hdr,nrows,/initialize
-		sxaddhist,"offsets from NUV channel", bout_hdr
-		fname = fuv_files[ifile]
-		spos  = strpos(fname, ".fits")
-		fname = strmid(fname, 0, spos+5)
-
-		mwrfits, fuvdata, fname, fuvhdr,/create,/no_comment
-		mwrfits, fuv_offsets, fname, bout_hdr, /no_comment
-		spawn,"gzip -fv " + fname
+			nrows = n_elements(fuvdata)
+			fxbhmake,bout_hdr,nrows,/initialize
+			sxaddhist,"offsets from NUV channel", bout_hdr
+			fname = fuv_files[ifile]
+			spos  = strpos(fname, ".fits")
+			fname = strmid(fname, 0, spos+5)
+			mwrfits, fuvdata, fname, fuvhdr,/create,/no_comment
+			mwrfits, fuv_offsets, fname, bout_hdr, /no_comment
+			spawn,"gzip -fv " + fname
+			
+			if (n_elements(fuv_images_dir) gt 0)then begin
+				nframes = jude_add_frames(fuvdata, grid, pixel_time,  params, $
+				fuvdata.xoff*params.resolution, fuvdata.yoff*params.resolution, $
+				ref_frame = ref_frame)
+				mkhdr, out_hdr, grid
+				jude_create_uvit_hdr, fuvhdr, out_hdr
+				nom_filter = strcompress(sxpar(fuvhdr, "filter"),/remove)
+				sxaddpar,out_hdr,"NFRAMES",nframes,"Number of frames"
+				cal_factor = jude_apply_cal("FUV", nom_filter)
+				sxaddpar, out_hdr, "CALF", cal_factor, "Ergs cm-2 s-1 A-1 pixel-1 (cps)-1"
+				q = where(fuvdata.dqi eq 0, nq)
+				if (nq gt 0)then begin
+					avg_time = $
+					(max(fuvdata[q].time) - min(fuvdata[q].time))/(max(q) - min(q))
+				endif else avg_time = 0
+				sxaddpar,out_hdr,"EXP_TIME",nframes * avg_time, "Exposure Time in seconds"
+				print,"Total exposure time is ",nframes * avg_time
+				nom_filter = nom_filter[0]
+				sxaddpar,out_hdr,  "FILTER",nom_filter
+				sxaddpar,out_hdr,  "MINEVENT",params.min_counts,"Counts per frame"
+				sxaddpar,out_hdr,  "MAXEVENT",params.max_counts,"Counts per frame"
+				sxaddpar, out_hdr, "MINFRAME", params.min_frame,"Starting frame"
+				sxaddpar, out_hdr, "MAXFRAME", params.max_frame,"Ending frame"
+				sxaddpar, out_hdr, "REFFRAME", ref_frame, "Reference frame."
+				sxaddhist,"Times are in Extension 1", out_hdr, /comment
+				imname = file_basename(fuv_files[ifile])
+				f1 = strpos(imname, "level1")
+				f2 = strpos(imname, "_", f1+8)
+				imname = strmid(imname, 0, f2)
+				imname  = fuv_images_dir   + imname + ".fits"
+				sxaddhist,fname,out_hdr
+				print,"writing image file to ",imname
+				mwrfits,grid,imname,out_hdr,/create
+				mkhdr, thdr, pixel_time, /image
+				sxaddpar,thdr,"BUNIT","s","Exposure map"
+				mwrfits,pixel_time,imname,thdr
+				spawn,"gzip -fv " + imname
+			endif
+		endif else print,"No match for ",file_basename(fuv_files[ifile])
 	endfor
 nodata:
 end

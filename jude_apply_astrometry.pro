@@ -66,7 +66,7 @@ pro jude_apply_astrometry, l2_file, params, data_dir = data_dir, new = new
 ;Name definitions
 	fname = file_basename(l2_file)
 	f1 = strpos(fname, "level1")
-	f2 = strpos(fname, "_", f1+8)
+	f2 = strpos(fname, "_bin", f1+1)
 	fname = strmid(fname, 0, f2)
 	if (n_elements(image_dir) eq 0)then $
 		image_dir   = uv_base_dir + params.image_dir
@@ -149,7 +149,8 @@ pro jude_apply_astrometry, l2_file, params, data_dir = data_dir, new = new
 	endfor
 	
 ;Write modified data out. Overwrite the original data.
-		fname = strmid(l2_file, 0, strlen(l2_file) - 3)
+		f1 = strpos(l2_file, "fits")
+		fname = strmid(l2_file, 0, f1) + "fits"
 		sxaddpar, hdr_l2, "ASTRDONE", "TRUE", "Astrometry done"
 		sxaddhist, "ROLL_RA,ROLL_DEC contain central ra, dec",hdr_l2,/comment
 		mwrfits, data_l2, fname, hdr_l2, /create, /no_comment

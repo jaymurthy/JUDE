@@ -44,6 +44,7 @@
 ;	JM: Aug. 21, 2017 : Problem in offsets if centroid was quit
 ;	JM: Aug. 28, 2017 : Was writing header incorrectly for second extension.
 ;	JM: Nov.  7, 2017 : Cosmetic changes.
+;   JM: Nov. 24, 2017 : Removed incorrect DQI setting.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -121,9 +122,6 @@ pro get_offsets, data_l2, offsets, xoff_vis, yoff_vis, xoff_uv, yoff_uv, $
 	if ((vis_exist eq 1) and (frac_vis_att gt .5) and (uv_exist eq 0))then begin
 		xoff_sc = xoff_vis
 		yoff_sc = yoff_vis
-;We can't use those points where we have no VIS data
-		q = where(offsets.att ne 0, nq)
-		if (nq gt 0)then dqi[q] = 2
 		uv_exist = 0
 	endif else vis_exist = 0
 
@@ -131,8 +129,6 @@ pro get_offsets, data_l2, offsets, xoff_vis, yoff_vis, xoff_uv, yoff_uv, $
 	if (uv_exist eq 1)then begin
 		xoff_sc = xoff_uv
 		yoff_sc = yoff_uv
-		q = where((abs(xoff_sc) gt 500) or (abs(yoff_sc) gt 500), nq)
-		if (nq gt 0)then dqi[q] = 2
 	endif 
 	
 	if ((vis_exist eq 0) and (uv_exist eq 0))then begin
@@ -445,12 +441,13 @@ if (param_ans eq -3)then stop
 			endif
 			if ((defaults and 2) eq 2)then run_centroid = 'n'
 
+;Registration is obsolete so we won't run it anymore.
 			run_registration = 'n'
-			if ((defaults eq 0) and (run_centroid ne 'y'))then begin
-				print,"Run registration (y/n)? Default is n."
-				run_registration = get_kbrd(1)
-				if (run_registration ne 'y')then run_registration = 'n'
-			endif
+;			if ((defaults eq 0) and (run_centroid ne 'y'))then begin
+;				print,"Run registration (y/n)? Default is n."
+;				run_registration = get_kbrd(1)
+;				if (run_registration ne 'y')then run_registration = 'n'
+;			endif
 if (param_ans eq -3)then stop
 ;*************************DATA REGISTRATION*******************************	
 			if (run_registration eq 'y')then begin

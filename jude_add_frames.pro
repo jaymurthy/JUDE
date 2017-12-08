@@ -63,6 +63,7 @@
 ;JM: Aug. 18, 2017: Corrected crash if xoff or yoff are not passed through
 ;JM: Aug. 21, 2017: Made Dtime floating instead of double.
 ;JM: Aug. 27, 2017: Reset ref_frame if required
+;JM: Nov. 24, 2017: If par not defined, now reads from jude_params()
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -82,13 +83,7 @@ function jude_add_frames, data, grid, pixel_time, par, xoff, yoff,$
 						ref_frame = ref_frame, apply_dist = apply_dist
 
 ;If par is not defined in the inputs, I use defaults.
-if (n_elements(par) eq 0) then begin
-	min_counts = 0					;Don't reject any counts
-	max_counts = max(data.nevents)	;Don't reject any counts
-    min_frame  = 0l					;Start from the first frame
-    max_frame  = n_elements(data)-1	;End with the last frame
-    resolution = 1					;Actual physical resolution
-endif else begin
+if (n_elements(par) eq 0) then par = jude_params()
 
 ;Calculate the optimal peak rejection using the median. The standard deviation
 ;will be the square root of the median.
@@ -111,7 +106,6 @@ endif else begin
 	min_frame  = par.min_frame
 	max_frame  = par.max_frame < ( n_elements(data)-1)
 	resolution = par.resolution
-endelse
 if (n_elements(apply_dist) eq 0)then apply_dist = 0
 
 ;Reset max_frame if it is 0. Can be used as shorthand in the input.

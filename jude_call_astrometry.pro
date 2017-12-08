@@ -65,7 +65,7 @@ pro jude_call_astrometry, inp_dir, out_dir, min_exp_time = min_exp_time, $
 			str = str + " --dir " + out_dir
 			if ((ra_pnt ne 0) and (dec_pnt ne 0))then begin
 				str = str + " --ra " + string(ra_pnt) + " --dec "
-				str = str + string(dec_pnt) + " --radius 1 "
+				str = str + string(dec_pnt); + " --radius 1 "
 			endif
 			str = strcompress(str + " " + files[ifile] + " > solve.txt")
 			print,"Beginning solve of file no ", ifile, " at ",systime(0)
