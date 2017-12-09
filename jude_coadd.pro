@@ -164,44 +164,23 @@ pro jude_coadd, input_dir, output_file, ra_cent, dec_cent, fov,$
 ;Use total counts rather than counts/s
 						time_val = dtime[index]
 						data_val = data[index]*time_val
-						
-;Some fraction of the counts should be in the central pixel
-						multx = dmultx[index]
-						multy = dmulty[index]
-						grid[ ix, iy, ifile] = grid[ ix, iy, ifile] + $
-							data_val*multx*multy
-						times[ix, iy, ifile] = times[ix, iy, ifile] + $
-							time_val*multx*multy
-						gadd[ ix, iy, ifile] = gadd[ ix, iy, ifile] + $
-							multx*multy
-							
+													
 ;Now the off-center pixels
 						tx = fix(xf[index] gt 0.5) - fix(xf[index] le 0.5)
 						ty = fix(yf[index] gt 0.5) - fix(yf[index] le 0.5)
-						for itx = -1, 1 do for ity = -1, 1 do begin
-							case 1 of
-itx eq tx:	multx = 1 - dmultx[index]
-itx eq 0:	multx = dmultx[index]
-else:		multx = 0d
-							endcase
-							case 1 of
-ity eq ty:	multy = 1 - dmulty[index]
-ity eq 0:	multy = dmulty[index]
-else:		multy = 0d
-							endcase
-							if ((itx eq 0) and (ity eq 0))then begin
-								multx = 0d
-								multy = 0d
-							endif
-							grid[ ix + itx, iy + ity, ifile] =  grid[ix + itx, iy + ity, ifile] + $
-									data_val*multx*multy
-							times[ix + itx, iy + ity, ifile] = times[ix + itx, iy + ity, ifile] + $
-									time_val*multx*multy
-							gadd[ ix + itx, iy + ity, ifile] =  gadd[ix + itx, iy + ity, ifile] + $
-									multx*multy
+						
+						ity = [-1, -1, -1,  0, 0, 0,  1, 1, 1]
+						itx = [-1,  0,  1, -1, 0, 1, -1, 0, 1]
+						multx = (itx eq tx)*(1 - dmultx[index]) + (itx eq 0)*dmultx[index]
+						multy = (ity eq ty)*(1 - dmulty[index]) + (ity eq 0)*dmulty[index]
+						grid[ ix-1:ix+1, iy-1:iy+1, ifile] =  grid[ix-1:ix+1, iy-1:iy+1, ifile] + $
+								data_val*multx*multy
+						times[ix-1:ix+1, iy-1:iy+1, ifile] = times[ix-1:ix+1, iy-1:iy+1, ifile] + $
+								time_val*multx*multy
+						gadd[ ix-1:ix+1, iy-1:iy+1, ifile] =  gadd[ix-1:ix+1, iy-1:iy+1, ifile] + $
+								multx*multy
 ;str = string(nqy) + string(xf[index]) + string(yf[index]) + string(itx) + string(ity) + string(multx) + string(multy)
 ;print,strcompress(str)
-						endfor
 					endfor; iqy
 				endfor ;iy
 			endif ;nqx
