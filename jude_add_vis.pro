@@ -70,7 +70,7 @@ for ifile = start_file, nfiles - 1 do begin
 		fname = strmid(fname, 0, fpos)
 		offset_file = offset_dir + fname + ".offsets"
 		spawn,"wc -l "+ offset_file,str
-		noff = getwrd(str) - 1
+		noff = long(getwrd(str)) - 1
 		if (noff gt 3)then begin
 			off = dblarr(4, noff)
 			openr,off_lun,offset_file,/get

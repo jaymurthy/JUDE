@@ -42,7 +42,9 @@ pro jude_call_astrometry, inp_dir, out_dir, min_exp_time = min_exp_time, $
 ;Check all the files 
 	files=file_search(inp_dir, "*.fits*",count=nfiles)
 	if (n_elements(min_exp_time) eq 0)then min_exp_time = 10
-	if (n_elements(out_dir) eq 0)then spawn, "mkdir ",out_dir
+	files=file_search(inp_dir, "*.fits*",count=nfiles)
+	if (n_elements(out_dir) eq 0)then out_dir = "astrometric/"
+	if (file_test(out_dir) eq 0)then spawn, "mkdir " + out_dir
 
 
 	for ifile = 0, nfiles - 1 do begin
@@ -58,8 +60,9 @@ pro jude_call_astrometry, inp_dir, out_dir, min_exp_time = min_exp_time, $
 			if (keyword_set(fuv))then begin
 				str = "solve-field --backend-config /Volumes/UVIT_Data/astrometric/astrometry.cfg"
 			endif else str = "solve-field --backend-config /Volumes/UVIT_Data/astrometry_tycho/astrometry.cfg"
-			str =  str + " --downsample 4 --scale-units"
-			str = str + ""
+			siz = size(im, /dimensions)
+			if (siz[0] gt 4000)then str =  str + " --downsample 4 "
+			str = str + " --scale-units"
 			str = str + " degwidth --scale-low .4 --scale-high .6 "
 			str = str + " --no-plots --continue"
 			str = str + " --dir " + out_dir
@@ -69,6 +72,7 @@ pro jude_call_astrometry, inp_dir, out_dir, min_exp_time = min_exp_time, $
 			endif
 			str = strcompress(str + " " + files[ifile] + " > solve.txt")
 			print,"Beginning solve of file no ", ifile, " at ",systime(0)
+			print,str
 			spawn,str
 			print,"Ending solve at ",systime(0)
 			

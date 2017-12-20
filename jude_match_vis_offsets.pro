@@ -33,7 +33,7 @@ function read_offset_file, offset_file, times, xoff, yoff
 
 ;Function reads the offset file into arrays.
 	spawn,"wc -l "+ offset_file,str
-	noff = getwrd(str) - 1
+	noff = long(getwrd(str)) - 1
 	if (noff gt 0)then begin
 		off = dblarr(4, noff)
 		openr,off_lun,offset_file,/get

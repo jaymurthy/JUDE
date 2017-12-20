@@ -66,6 +66,7 @@
 ;JM: Nov. 24, 2017: If par not defined, now reads from jude_params()
 ;JM: Dec. 08, 2017: Was not taking the reference frame when calculating times.
 ;JM: Dec. 09, 2017: Major speed increase.
+;JM: Dec. 10, 2017: Setting ref_frame wrong.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -115,11 +116,9 @@ if (min_frame eq 0)then min_frame = $
 	min(where((data.dqi eq 0) and (abs(xoff) lt 1000) and $
 		(abs(yoff) lt 1000)))
 		
-if (n_elements(ref_frame) eq 0)then begin
-	ref_frame = min_frame
+if (n_elements(ref_frame) eq 0)then ref_frame = min_frame
 	while (((abs(xoff[ref_frame]) gt 1000) or (abs(yoff[ref_frame]) gt 1000)) and $
 		   (ref_frame lt (n_elements(data) - 2))) do ref_frame = ref_frame + 1
-endif
 if (max_frame eq 0) then max_frame =  n_elements(data)-1
 
 ;If the offsets are not defined, they are set to 0

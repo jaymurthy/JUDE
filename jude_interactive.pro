@@ -45,6 +45,8 @@
 ;	JM: Aug. 28, 2017 : Was writing header incorrectly for second extension.
 ;	JM: Nov.  7, 2017 : Cosmetic changes.
 ;   JM: Nov. 24, 2017 : Removed incorrect DQI setting.
+;	JM: Dec. 11, 2017 : If redone then reread the files.
+;	JM: Dec. 18, 2017 : If uv_base_dir is not defined I deduce from the header
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -275,7 +277,8 @@ pro plot_diagnostics, data_l2, offsets, data_hdr0, im_hdr, fname, grid, $
 		if ((nxstar gt 0) and (nystar gt 0))then begin
 			h1 = set_limits_inter(grid, xstar, ystar, 10, params.resolution)
 			r1 = mpfit2dpeak(h1, a1)
-			print,"width of star is: ",a1[2],a1[3]	
+			print,"width of star is: ",a1[2],a1[3]
+			tv,bytscl(h1, 0, max_im_value),0,512
 		endif
 	endif
 end
@@ -296,7 +299,7 @@ pro jude_interactive, data_file, uv_base_dir, data_l2, grid, offsets, params = p
 ;If we have a window open keep it, otherwise pop up a default window
 	device,window_state = window_state
 	if (window_state[0] eq 0)then $
-		window, 0, xs = 1024, ys = 512, xp = 10, yp = 500
+		window, 0, xs = 1024, ys = 700, xp = 10, yp = 500
 
 ;The image brightness may vary so define a default which may change
 	if (n_elements(max_im_value) eq 0)then max_im_value  = 0.000002
@@ -312,6 +315,7 @@ pro jude_interactive, data_file, uv_base_dir, data_l2, grid, offsets, params = p
 	jude_err_process,"errors.txt",data_file	
 
 ;************************LEVEL 2 DATA *********************************
+check_diag: ;Restart the read.
 	data_l2   = mrdfits(data_file,1,data_hdr0,/silent)
 	ndata_l2  = n_elements(data_l2)
 	
@@ -336,11 +340,16 @@ pro jude_interactive, data_file, uv_base_dir, data_l2, grid, offsets, params = p
 		params.max_counts = dave + dstd*5
 
 ;Name definitions
+		detector = strcompress(sxpar(data_hdr0,"detector"), /remove)
 		if (n_elements(data_dir) eq 0)then data_dir = ''
 		fname = file_basename(data_file)
 		f1 = strpos(fname, "level1")
 		f2 = strpos(fname, "_", f1+8)
 		fname = strmid(fname, 0, f2)
+		if (n_elements(uv_base_dir) eq 0)then begin
+			if (detector eq "NUV")then uv_base_dir = "nuv/"
+			if (detector eq "FUV")then uv_base_dir = "fuv/"
+		endif
 		image_dir   = data_dir + uv_base_dir + params.image_dir
 		events_dir  = data_dir + uv_base_dir + params.events_dir
 		png_dir     = data_dir + uv_base_dir + params.png_dir
@@ -357,7 +366,6 @@ pro jude_interactive, data_file, uv_base_dir, data_l2, grid, offsets, params = p
 			sxaddhist,"No offsets from visible",off_hdr, /comment
 			print,"No visible offsets available."
 		endif
-		detector = strcompress(sxpar(data_hdr0,"detector"), /remove)
 		calc_uv_offsets, offsets, xoff_vis, yoff_vis, detector
 		xoff_uv = data_l2.xoff
 		yoff_uv = data_l2.yoff
@@ -374,7 +382,6 @@ pro jude_interactive, data_file, uv_base_dir, data_l2, grid, offsets, params = p
 				/notime)
 		endelse
 
-check_diag:
 ;Plot the image plus useful diagnostics
 		plot_diagnostics, data_l2, offsets, data_hdr0, im_hdr, fname, grid, $
 					params, ymin, ymax, max_im_value

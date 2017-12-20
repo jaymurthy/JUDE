@@ -60,7 +60,10 @@ pro jude_match_nuv_offsets, nuv_events_dir, fuv_events_dir, fuv_images_dir, para
 		fuv_images_dir = params.def_fuv_dir + params.image_dir
 	nuv_files 	= file_search(nuv_events_dir, "*", count = nuvfiles)
 	fuv_files 	= file_search(fuv_events_dir, "*", count = fuvfiles)
-	if ((nuvfiles eq 0) or (fuvfiles eq 0))then goto,nodata
+	if ((nuvfiles eq 0) or (fuvfiles eq 0))then begin
+		print,"No files."
+		goto,nodata
+	endif
 
 ;Read NUV offsets from the files.
 	nuv_start = dblarr(nuvfiles)	;Starting time in each file

@@ -23,6 +23,7 @@
 ;
 ;Modification history
 ;JM: Nov. 29, 2017: Internal change to add NUV directory
+;JM: Dec. 17, 2017: MAde out dir optional.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -63,10 +64,11 @@ pro jude_call_client_py, inp_dir, out_dir, $
 			goto,noproc
 		endif
 	endif
-		
+
 ;Get the names of the FITS files 
 	files=file_search(inp_dir, "*.fits*",count=nfiles)
-	if (n_elements(out_dir) eq 0)then spawn, "mkdir ",out_dir
+	if (n_elements(out_dir) eq 0)then out_dir = "astrometric/"
+	if (file_test(out_dir) eq 0)then spawn, "mkdir " + out_dir
 
 ;No point in running for short exposures
 	if (n_elements(min_exp_time) eq 0)then min_exp_time = 10
@@ -82,6 +84,7 @@ pro jude_call_client_py, inp_dir, out_dir, $
 		ra_pnt   = sxpar(im_hdr, "RA_PNT")
 		dec_pnt  = sxpar(im_hdr, "DEC_PNT")
 		detector = sxpar(im_hdr, "DETECTOR")
+		naxis    = sxpar(im_hdr, "NAXIS1")
 		if (keyword_set(new))then astr_done = "FALSE" else $
 			astr_done = strcompress(sxpar(im_hdr, "ASTRDONE"),/rem)
 
@@ -104,7 +107,7 @@ pro jude_call_client_py, inp_dir, out_dir, $
 			str = str + " --private"
 			
 ;I assume 4096x4096 so I downsample by a factor of 4
-			str =  str + " --downsample 4"
+			if (naxis gt 4000)then 	str =  str + " --downsample 4"
 ;I know the scale of the UVIT images			
 			str = str + " --scale-units degwidth "
 			str = str + " --scale-lower .4 --scale-upper .6 "

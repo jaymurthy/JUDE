@@ -114,7 +114,7 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 	nbin = params.fine_bin
 ;BOXSIZE is the area around each point source. It should be more than the
 ;maximum mostion of the s/c in that duration
-	if (n_elements(boxsize) eq 0)then boxsize = 10
+	if (n_elements(boxsize) eq 0)then boxsize = 30
 ;MEDSIZ is a  median filter the image to get rid of random hits
 	if (n_elements(medsiz) eq 0)then medsiz = 2
 ;MAX_IM_VALUE for different images
@@ -202,7 +202,7 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 							xmin = xmin, ymin = ymin)
 			siz = size(h1)
 			if (display ne 0)then begin
-				tv,bytscl(rebin(h1,siz[1]*5, siz[2]*5), 0, max_im_value), 512, 0
+				tv,bytscl(rebin(h1,siz[1]*(512/siz[0]), siz[2]*(512/siz[1])), 0, max_im_value), 512, 0
 				print,"Width is ",a1[2], a1[3]," Star pos: ",xstar, ystar
 			endif
 			ans = 'y'
