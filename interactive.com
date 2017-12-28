@@ -4,6 +4,8 @@
 
 ;The path to the JUDE procedures. Change to local path.
 !path="/Users/jayanth/Dropbox/jude:"+!path
+!path = "/home/murthy/idllib/cmlib:" + !path; Add Markwardt routines
+!path = "/home/murthy/idllib/pro:"   + !path; Add IDLASTRO routines
 
 ;Sets up default parameters. If jude_params is in the current directory, it
 ;will run that version rather than the original.

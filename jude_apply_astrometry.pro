@@ -37,7 +37,7 @@
 ;   See the License for the specific language governing permissions and
 ;   limitations under the License.
 ;-
-pro jude_apply_astrometry, l2_file, params, data_dir = data_dir, new = new
+pro jude_apply_astrometry, l2_file, data_dir = data_dir, new = new
 
 ;Begin by reading from Level 2 files
 	if (file_test(l2_file))then begin
@@ -80,16 +80,8 @@ pro jude_apply_astrometry, l2_file, params, data_dir = data_dir, new = new
 		print, "Could not find ", image_file
 		goto, noproc
 	endelse
-
-;Check resolution. This is primarily used as a sanity check. I have to know
-;the image resolution to convert into the coordinates for the photon list so
-;I'm just confirming that it is what I think it is.
-	resolution = params.resolution
-	if ((resolution * 512) ne (sxpar(hdr_im, "NAXIS1")))then begin
-		print,"Mismatch in coordinates"
-		goto, noproc
-	endif
-	
+	siz = size(grid, /dim)
+	resolution = siz[0]/512
 ;Check to make sure astrometry has been done on the image
 	astr_done = strcompress(sxpar(hdr_im, "ASTRDONE"),/rem)
 	if (astr_done ne "TRUE")then begin
@@ -103,8 +95,8 @@ pro jude_apply_astrometry, l2_file, params, data_dir = data_dir, new = new
 	min_frame  = sxpar(hdr_im, "MINFRAME")
 	max_frame  = sxpar(hdr_im, "MAXFRAME")
 
-	xoff   = data_l2.xoff * params.resolution
-	yoff   = data_l2.yoff * params.resolution
+	xoff   = data_l2.xoff * resolution
+	yoff   = data_l2.yoff * resolution
 
 ;This is the code from jude_add_frames so I reproduce it here.
 	if (min_frame eq 0)then min_frame = $

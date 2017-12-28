@@ -67,6 +67,8 @@
 ;JM: Dec. 08, 2017: Was not taking the reference frame when calculating times.
 ;JM: Dec. 09, 2017: Major speed increase.
 ;JM: Dec. 10, 2017: Setting ref_frame wrong.
+;JM: Dec. 23, 2017: Change in limits of xoff and yoff. Should not affect much,
+;JM: Dec. 25, 2017: Using ref_frame from parameters.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -113,11 +115,11 @@ if (n_elements(apply_dist) eq 0)then apply_dist = 0
 
 ;Reset max_frame if it is 0. Can be used as shorthand in the input.
 if (min_frame eq 0)then min_frame = $
-	min(where((data.dqi eq 0) and (abs(xoff) lt 1000) and $
-		(abs(yoff) lt 1000)))
+	min(where((data.dqi eq 0) and (abs(xoff) lt 1e5) and $
+		(abs(yoff) lt 1e5)))
 		
-if (n_elements(ref_frame) eq 0)then ref_frame = min_frame
-	while (((abs(xoff[ref_frame]) gt 1000) or (abs(yoff[ref_frame]) gt 1000)) and $
+if (n_elements(ref_frame) eq 0)then ref_frame = par.ref_frame
+	while (((abs(xoff[ref_frame]) gt 1e5) or (abs(yoff[ref_frame]) gt 1e5)) and $
 		   (ref_frame lt (n_elements(data) - 2))) do ref_frame = ref_frame + 1
 if (max_frame eq 0) then max_frame =  n_elements(data)-1
 
@@ -199,8 +201,8 @@ endif
 ;Only if frame meets all the conditions
 	if ((data(ielem).nevents gt min_counts) and $
 		(data(ielem).nevents le max_counts) and $
-		(abs(xoff[ielem]) lt 1000) and $
-		(abs(yoff[ielem]) lt 1000) and $
+		(abs(xoff[ielem]) lt 1e5) and $
+		(abs(yoff[ielem]) lt 1e5) and $
 		(data(ielem).dqi le dqi_value))then begin
 
 ;Time interval

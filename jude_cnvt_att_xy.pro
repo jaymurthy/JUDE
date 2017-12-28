@@ -36,6 +36,7 @@ function jude_cnvt_att_xy, hdr, xoff, yoff, params = params
 ;		JM: Jul.  3, 2017: Changed loop from integer to long
 ;		JM: Aug. 17, 2017: In cases, xoff and yoff were passed as integers not arrays.
 ;		JM: Nov. 21, 2017: Switched to Common Blocks
+;		JM: Dec. 27, 2017: parameters were not being handled consistently
 ; COPYRIGHT:
 ;Copyright 2016 Jayant Murthy
 ;
@@ -62,15 +63,10 @@ function jude_cnvt_att_xy, hdr, xoff, yoff, params = params
 
 START_PROGRAM:				   
 ;Initialize variables
-	if (n_elements(params) eq 0) then begin
-		min_counts = 0l
-		max_counts = max(data.nevents)
-		resolution = 1
-	endif else begin
-		min_counts = params.min_counts
-		max_counts = params.max_counts
-		resolution = params.resolution
-	endelse
+	if (n_elements(params) eq 0) then params = jude_params()
+	min_counts = params.min_counts
+	max_counts = params.max_counts
+	resolution = params.resolution
 	bin = 100
 	dqi_value = 0; Flag for problems in attitude
 	start_frame = 0
@@ -94,10 +90,7 @@ START_PROGRAM:
 	if (nq gt 0)then old_bad(q) = 1
 	
 ;First frame is at the beginning and I use that as the reference
-	par = {par, min_counts: min_counts, max_counts: max_counts, $
-				min_frame:0l, max_frame:0l, $
-				resolution:resolution}
-				
+	par = params	
 ;Skip over bad data at the beginning.				
 	while ((data[par.min_frame].dqi ne 0) and (par.min_frame lt (n_elems - bin - 1))) do $
 		par.min_frame = par.min_frame + 1

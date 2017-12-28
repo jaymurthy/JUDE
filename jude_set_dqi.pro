@@ -37,6 +37,7 @@
 ;	JM:	May  23, 2017: Version 3.1
 ;	JM: Nov. 21, 2017: Changed to using common blocks
 ;	JM: Nov. 27, 2017: Was throwing away too much data from filter/frame checks.
+;	JM: Dec. 27, 2017: Error in indices.
 ; COPYRIGHT:
 ;Copyright 2016 Jayant Murthy
 ;
@@ -136,9 +137,11 @@ function jude_set_dqi, data_hdr, out_hdr
 	for ielem = 0l, nelems - 1 do begin
 		index0 = max(where(att_new[index:*].time le data_l1a[ielem].time, nq0))
 		index1 = min(where(att_new[index:*].time ge data_l1a[ielem].time, nq1))
-		index0 = index0 + index
-		index1 = index1 + index
-		index  = index0
+		if (nq0 gt 0)then begin
+			index0 = index0 + index
+			index  = index0
+		endif
+		if (nq1 gt 0)then index1 = index1 + index
 		dqi_value = 0 ;No attitude information
 		if ((nq0 eq 0) or (nq1 eq 0))then $
 			data_l1a[ielem].dqi = data_l1a[ielem].dqi + dqi_value 

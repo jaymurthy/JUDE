@@ -226,10 +226,6 @@ pro plot_diagnostics, data_l2, offsets, data_hdr0, im_hdr, fname, grid, $
 		ymax = 10
 	endelse
 	q = where(offsets.att eq 0, nq)
-	if (nq gt 0)then begin
-		ymin = min([ymin, min(xoff_vis[q]), min(yoff_vis[q])])
-		ymax = max([ymax, max(xoff_vis[q]), max(yoff_vis[q])])
-	endif
 
 ;Plot the offsets
 	plot,data_l2.time  - data_l2[0].time, xoff_uv,charsize=2,yrange = [ymin, ymax],$
@@ -279,6 +275,7 @@ pro plot_diagnostics, data_l2, offsets, data_hdr0, im_hdr, fname, grid, $
 			r1 = mpfit2dpeak(h1, a1)
 			print,"width of star is: ",a1[2],a1[3]
 			tv,bytscl(h1, 0, max_im_value),0,512
+			plots,/dev,xstar/params.resolution,ystar/params.resolution,psym=4,symsize=2,col=255,thick=3
 		endif
 	endif
 end
@@ -315,7 +312,6 @@ pro jude_interactive, data_file, uv_base_dir, data_l2, grid, offsets, params = p
 	jude_err_process,"errors.txt",data_file	
 
 ;************************LEVEL 2 DATA *********************************
-check_diag: ;Restart the read.
 	data_l2   = mrdfits(data_file,1,data_hdr0,/silent)
 	ndata_l2  = n_elements(data_l2)
 	
@@ -323,10 +319,9 @@ check_diag: ;Restart the read.
 ;data file
 	params.min_frame = sxpar(data_hdr0, "MINFRAME")
 	params.max_frame = sxpar(data_hdr0, "MAXFRAME")
+	params.ref_frame = sxpar(data_hdr0, "REFFRAME")
 	if ((params.max_frame eq 0) or (params.max_frame gt (ndata_l2 -1)))then $
 		params.max_frame = ndata_l2 - 1
-	start_frame = params.min_frame
-	end_frame 	= params.max_frame
 	save_dqi  = data_l2.dqi
 	dqi       = data_l2.dqi
 	
@@ -381,17 +376,17 @@ check_diag: ;Restart the read.
 				xoff_uv*params.resolution, yoff_uv*params.resolution,$
 				/notime)
 		endelse
-
+check_diag:
 ;Plot the image plus useful diagnostics
 		plot_diagnostics, data_l2, offsets, data_hdr0, im_hdr, fname, grid, $
 					params, ymin, ymax, max_im_value
 					
 		if (defaults ne 0)then ans = 'n' else ans = "y"
 		while (ans eq "y") do begin
-			tv,bytscl(rebin(grid, 512, 512), 0, max_im_value)
 			print,"Redisplay?"
 			ans = get_kbrd(1)
 			if (ans eq 'y')then read, max_im_value
+			tv,bytscl(rebin(grid, 512, 512), 0, max_im_value)
 		endwhile
 		
 ;Check to see if there is any good data
@@ -501,7 +496,6 @@ if (ans ne "d")then begin
 
 			if (run_centroid eq 'y')then begin
 print,"Starting centroid"
-				nbin = params.fine_bin
 				if (strupcase(detector) eq "FUV")then $
 					thg1 = params.ps_threshold_fuv else $
 					thg1 = params.ps_threshold_nuv
@@ -524,11 +518,12 @@ print,"Starting centroid"
 				data_l2.dqi = dqi
 				nframes = jude_add_frames(data_l2, grid, pixel_time,  params, $
 							xoff_sc*params.resolution, yoff_sc*params.resolution,$
-							/notime, debug = 100)
+							/notime, debug = 100, ref_frame = ref_frame)
 			endif else begin
 				data_l2.dqi = dqi
 				nframes = jude_add_frames(data_l2, grid, pixel_time,  params, $
-							xoff_sc*params.resolution, yoff_sc*params.resolution, /notime)
+							xoff_sc*params.resolution, yoff_sc*params.resolution, /notime, $
+							ref_frame = ref_frame)
 			endelse
 			
 			print,"Total of ",nframes," frames ",nframes*.035," seconds"
@@ -654,10 +649,7 @@ print,"Starting centroid"
 				ans=get_kbrd(1)
 			endif else ans = "n"
 			if (ans ne 'r')then begin
-				data_l2.xoff = xoff_sc
-				data_l2.yoff = yoff_sc
-				xoff_uv		 = xoff_sc
-				yoff_uv		 = yoff_sc
+				data_l2   = mrdfits(data_file,1,data_hdr0,/silent)
 			endif else if (ans eq 'r') then ans = 'y'
 			data_l2.dqi = save_dqi
 			if (ans eq "y")then goto, check_diag

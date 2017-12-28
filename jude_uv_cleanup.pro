@@ -17,6 +17,7 @@
 ;JM: May  22, 2017: Version 3.1
 ;JM: Jun. 27, 2017: Extra space in file spec.
 ;JM: Aug. 18, 2017: Runs with visible offfsets as default.
+;JM: Dec. 25, 2017: Reset parameters each time.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -104,9 +105,11 @@ if (file_test(uv_base_dir + params.temp_dir) gt 0)then $
 	files = file_search(uv_base_dir + params.events_dir, "*.fits.gz", count = nfiles)
 	spawn,"rm " + uv_base_dir + params.png_dir + "*.png"
 	
-	for ifile = 0, nfiles - 1 do $
+	for ifile = 0, nfiles - 1 do begin
+		params = jude_params()
 		JUDE_INTERACTIVE,files[ifile], uv_base_dir, data, grid, offsets, $
 			 params = params, defaults=4
+	endfor
 	obs_file_in  = uv_base_dir + "observation.csv"
 	obs_file_out = uv_base_dir + "final_obslog.csv"
 	JUDE_OBS_LOG,obs_file_out, uv_base_dir, params

@@ -11,6 +11,7 @@
 ;	FITS binary tables are written. Original Level 2 files are overwritten.
 ;MODIFICATION HISTORY
 ;	JM: Nov. 24, 2017 : 
+;	JM: Dec. 23, 2017 : Reset parameters each time.
 ;COPYRIGHT
 ;Copyright 2016 Jayant Murthy
 ;
@@ -46,10 +47,10 @@ function read_offset_file, offset_file, times, xoff, yoff
 	endelse
 end
 
-pro jude_match_nuv_offsets, nuv_events_dir, fuv_events_dir, fuv_images_dir, params = params
+pro jude_match_nuv_offsets, nuv_events_dir, fuv_events_dir, fuv_images_dir
 
 ;Parameters
-	if (n_elements(params) eq 0)then params = jude_params()
+	params = jude_params()
 	
 ;File definitions
 	if (n_elements(nuv_events_dir) eq 0)then $
@@ -88,6 +89,7 @@ pro jude_match_nuv_offsets, nuv_events_dir, fuv_events_dir, fuv_images_dir, para
 
 ;Run through the UV files
 	for ifile = 0, fuvfiles - 1 do begin
+		params = jude_params()
 		match_time = 0
 
 ;Read the Event Lists from the UV data
@@ -97,8 +99,8 @@ pro jude_match_nuv_offsets, nuv_events_dir, fuv_events_dir, fuv_images_dir, para
 ;Initialize the offset array.
 		fuv_offsets = replicate({offsets, time:0d, xoff:0., yoff:0., att:0}, nelems)
 		fuv_offsets.time = fuvdata.time
-		fuv_offsets.xoff = -1000.
-		fuv_offsets.yoff = -1000.
+		fuv_offsets.xoff = -1e6
+		fuv_offsets.yoff = -1e6
 		fuv_mintime = min(fuvdata.time)
 		fuv_maxtime = max(fuvdata.time)
 		itime = 0
@@ -171,8 +173,8 @@ pro jude_match_nuv_offsets, nuv_events_dir, fuv_events_dir, fuv_images_dir, para
 				ielem = nelems - 1
 				while ((fuvdata[ielem].time gt max(nuv_times)) and $
 						(ielem ge 0)) do begin
-					fuvdata[ielem].xoff = -1000
-					fuvdata[ielem].yoff = -1000
+					fuvdata[ielem].xoff = -1e6
+					fuvdata[ielem].yoff = -1e6
 					ielem = ielem - 1
 				endwhile
 			endif
@@ -227,6 +229,7 @@ pro jude_match_nuv_offsets, nuv_events_dir, fuv_events_dir, fuv_images_dir, para
 				spawn,"gzip -fv " + imname
 			endif
 		endif else print,"No match for ",file_basename(fuv_files[ifile])
+		if (n_elements(ref_frame) gt 0)then delvar,ref_frame
 	endfor
 nodata:
 end

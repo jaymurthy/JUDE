@@ -243,8 +243,8 @@ star_pos = star_pos
 	if (n_elements(star_pos) eq 2)then $
 		ad2xy, star_pos[0], star_pos[1], ref_astr, star_posx, star_posy $
 	else begin
-		star_posx = nsize/2d
-		star_posy = nsize/2d
+		star_posx = nsize[0]/2d
+		star_posy = nsize[1]/2d
 	endelse
 	star_dist = sqrt((refxp - star_posx)^2 + (refyp - star_posy)^2)
 	s = sort(star_dist)

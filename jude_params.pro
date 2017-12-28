@@ -10,6 +10,7 @@
 ;MODIFICATION HISTORY
 ;	JM:	July 13, 2016
 ;	JM: May  23, 2017 Version 3.1
+;	JM: Dec. 22, 2017: Added reference frame
 ;COPYRIGHT
 ;Copyright 2016 Jayant Murthy
 ;
@@ -36,6 +37,7 @@ function jude_params
 		max_counts: 0,	 $; The maximum number of events in a frame
 		min_frame:  0l,	 $; The starting frame number for processing
 		max_frame:  0l,	 $; The ending frame number for processing
+		ref_frame:	0l,	 $; Reference frame for add frames
 		coarse_bin: 200, $; Number of bins to get decent S/N on a point source
 		fine_bin:	20,	 $; Use 2-d correlations to get better pointing
 		ps_threshold_fuv: 3.e-4, 	$; Use 3e-4 for FUV, 

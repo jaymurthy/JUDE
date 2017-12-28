@@ -37,7 +37,8 @@
 ;-
 
 pro jude_coadd, input_dir, output_file, ra_cent, dec_cent, fov,$
-				pixel_size, out_dir = out_dir
+				pixel_size, out_dir = out_dir,filter=filter, $
+				detector = detector
 
 ;The files to be added are all in input_files
 	input_files = file_search(input_dir, "*.fits*", count = nfiles)
@@ -61,7 +62,7 @@ good_file = 0
 			good_file = good_file + 1
 		endif
 	endfor
-	
+		
 	if (n_elements(ra_im) eq 0)then begin
 		print,"No Astrometry."
 		goto, no_proc
@@ -120,6 +121,27 @@ good_file = 0
 		data   = mrdfits(input_files[ifile], 0, inphdr, /silent)
 		dtime  = mrdfits(input_files[ifile], 1, inpthdr, /silent)
 		if (n_elements(dtime) eq 1)then dtime = data*0 + 1.
+		
+;Check filter
+		naxes = sxpar(inphdr,"NAXIS")
+		if (naxes ne 2)then begin
+			print,"Not an image file"
+			goto,skip_file
+		endif
+		if (n_elements(filter) gt 0)then begin
+			obsfilt = sxpar(inphdr,"FILTER")
+			if (strcompress(obsfilt,/rem) ne strupcase(filter))then begin
+				print,"Filter does not match: ", obsfilt
+				goto, skip_file
+			endif
+		endif
+		if (n_elements(detector) gt 0)then begin
+			obsdet = sxpar(inphdr,"DETECTOR")
+			if (strcompress(obsdet, /rem) ne strupcase(detector))then begin
+				print,"Detector does not match: ", obsdet
+				goto, skip_file
+			endif
+		endif
 		
 ;Get astrometry for input file
 		inpastr = 0
@@ -200,8 +222,8 @@ good_file = 0
 		tv,bytscl(grid[*,*,ifile],0,max(grid[*,*,ifile])/10.)
 		
 		if ((delta_x lt 1) or (delta_y lt 1))then begin
-			print,"WARNING: This program is only intended to be used when"
-			print,"the output resolution is mcuh less than the input."
+			print,"WARNING: This program is may not be accurate if the output"
+			print,"pixel size is much less than the input."
 			print,"input res: ", pix_xsize, pix_ysize
 			print,"output res: ",inp_pix_xsize, inp_pix_ysize
 		endif

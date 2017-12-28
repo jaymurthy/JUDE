@@ -235,11 +235,8 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 			endif
 			h1 = set_limits(grid2, xstar, ystar, boxsize, params.resolution,$
 							xmin = xmin, ymin = ymin)
-			r1 = mpfit2dpeak(h1, a1)
-			if (finite(a1[4]) and finite(a1[5]))then begin
-				xstar = xmin + a1[4]
-				ystar = ymin + a1[5]
-			endif
+;			r1 = mpfit2dpeak(h1, a1)
+a1=fltarr(5)
 				
 			h1 = set_limits(grid2, xstar, ystar, boxsize, params.resolution, $
 							xmin = xmin, ymin = ymin)
@@ -295,11 +292,6 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 				endif else ans = 's'
 			endwhile
 		endwhile
-		q = where(finite(a1) eq 0, nq)
-		if ((xstar eq 0) or (nq gt 0)) then begin
-			print,"No stars found"
-			goto, noproc
-		endif else print,"Width is ",a1[2],a1[3], " Star pos: ",xstar, ystar
 	endif
 
 ;Initial definitions for centroid region
@@ -342,7 +334,7 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 			siz = size(carray, /dimensions)
 			if (siz[0] lt 2)then stop
 ;Median filter to get rid of spots
-			carray = median(carray, medsiz)
+;			carray = median(carray, medsiz)
 			carray(0:medsiz-1,*)=0
 			carray(siz[0]-medsiz-1:siz[0]-1,*) = 0
 			carray[*,0:medsiz-1] = 0
@@ -426,14 +418,14 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 	if ((display eq 1) and (max(grid2) gt 0))then $
 			tv,bytscl(rebin(grid2,512,512),0,max_im_value)
 		h1 = set_limits(grid2, xstar_first, ystar_first, boxsize, params.resolution)
-		r1 = mpfit2dpeak(h1, a1)
+;		r1 = mpfit2dpeak(h1, a1)
 		siz = size(h1, /dimensions)
 		if (display eq 1)then begin
 			if (siz[0] lt 512)then begin
 					tv,bytscl(rebin(h1,siz[0]*(512/siz[0]), siz[1]*(512/siz[1])), 0, 0.0001), 512, 0
 			endif else tv,bytscl(h1, 0, 0.0001), 512, 0
 		endif
-		print,"New width is ",a1[2],a1[3],"                "
+;		print,"New width is ",a1[2],a1[3],"                "
 
 ;Update offsets
 		qbad = where((xoff le -1e6) or (yoff le -1e6),nqbad)
