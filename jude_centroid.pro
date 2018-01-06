@@ -195,7 +195,7 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 	if (nq gt 0)then xoff[q]= 0
 	q = where(abs(yoff) gt 500, nq)
 	if (nq gt 0)then yoff[q]= 0
-	
+		
 ;Select star
 	if ((n_elements(xstar) eq 0) or (keyword_set(new_star)))then begin
 		nframes = jude_add_frames(data_l2, grid2, pixel_time,  params, $

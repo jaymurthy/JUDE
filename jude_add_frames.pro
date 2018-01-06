@@ -69,6 +69,7 @@
 ;JM: Dec. 10, 2017: Setting ref_frame wrong.
 ;JM: Dec. 23, 2017: Change in limits of xoff and yoff. Should not affect much,
 ;JM: Dec. 25, 2017: Using ref_frame from parameters.
+;JM: Jam. 03, 2018: Fixed out of bounds error.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -237,10 +238,10 @@ endif
 			if ((xindex ne old_xindex) or (yindex ne old_yindex))then begin
 				pixel_time = pixel_time + ishft*shft_times
 				shft_times =shift(times, xindex, yindex)
-				if (xindex gt 0)then shft_times[0:xindex-1,*] = 0
-				if (xindex lt 0)then shft_times[gxsize + xindex:gxsize - 1, *] = 0
-				if (yindex gt 0)then shft_times[*, 0:yindex-1] = 0
-				if (yindex lt 0)then shft_times[*, gysize + yindex:gxsize - 1] = 0
+				if (xindex gt 0)then shft_times[0:(xindex-1) < (gxsize - 1),*] = 0
+				if (xindex lt 0)then shft_times[(gxsize + xindex) > 0:gxsize - 1, *] = 0
+				if (yindex gt 0)then shft_times[*, 0:(yindex-1) < (gysize - 1)] = 0
+				if (yindex lt 0)then shft_times[*, (gysize + yindex) > 0:gxsize - 1] = 0
 				old_xindex = xindex
 				old_yindex = yindex
 				ishft = 0

@@ -47,7 +47,6 @@ params = jude_params()
 	if (do_over eq 2)then begin
 		print,"Bad ADD VIS files found: Please restart progam."
 		print,"Do not delete any files."
-		exit
 	endif
 
 print,"Verifying NUV files"

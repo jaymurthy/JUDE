@@ -92,6 +92,7 @@
 ;	JM: Nov.  9, 2017 : Assume all successful files are gzipped.
 ;	JM: Nov. 16, 2017 : Skip processing if JUDE_VERIFY_FILES_DONE exists.
 ;	JM: Nov. 21, 2017 : Switch to Common Blocks for the Level 1 files.
+;	JM: Jan. 03, 2017 : Don't write out single frame files.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -120,7 +121,7 @@ COMMON DATA_VARS, DATA_L1, DATA_L1A, DATA_L2
 ;Define bookkeeping variables
 	exit_success = 1
 	exit_failure = 0
-	version_date = "May 24, 2017"
+	version_date = "Christmas, 2017"
 	print,"Software version: ",version_date
 	hk_base = ""
 	
@@ -308,13 +309,6 @@ print,"Begin event processing",string(13b),format="(a, a, $)"
 		nom_filter = strcompress(sxpar(out_hdr, "filter"),/remove)
 		sxaddpar,bout_hdr,"FILTER",nom_filter
 		sxaddhist,fname, bout_hdr
-;The calculated offsets are specific to the resolution. When I save them
-;I renormalize them to a 512x512 array
-		data_l2.xoff = data_l2.xoff/params.resolution
-		data_l2.yoff = data_l2.yoff/params.resolution
-		mwrfits,data_l2,events_name,bout_hdr,/create,/no_comment,/silent
-		data_l2.xoff = data_l2.xoff*params.resolution
-		data_l2.yoff = data_l2.yoff*params.resolution
 ;************************LEVEL 2 DATA *********************************
 ;If the Level 2 data exists, I don't have to go through the HK files again.
 ;The goal is to make the Level 2 data self-contained.
@@ -396,7 +390,8 @@ if (do_not_do_this eq 0)then begin
 endif
 ;*********************************FINISH PROCESSING**********************
 
-;Final image production
+;Final image production (Don't bother if there is only one frame).
+	if (n_elements(data_l2) le 1)then goto, no_process
 	xoff = data_l2.xoff
 	yoff = data_l2.yoff
 	par = params
@@ -497,6 +492,7 @@ endif
 	obs_str = obs_str + " " + events_name + ".gz" 
 ;Write file log
 	printf,obs_lun,obs_str
+	
 no_process:
 if (keyword_set(debug))then stop
 	str = "Time taken for file is " + string(systime(1) - time0) + " seconds"

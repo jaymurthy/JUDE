@@ -31,6 +31,7 @@ if (nf gt 0)then spawn,"gzip -f fuv/events/*.fits"
 jude_driver_uv,dname,/fuv,/notime
 
 ;Identify and remove bad files.
+if (file_test("JUDE_VERIFY_FILES_DONE") eq 0)then $
 jude_verify_files,dname
 
 ;Merge the data and run the automated registration. Should work in most cases.

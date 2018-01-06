@@ -27,9 +27,18 @@ if (nf gt 0)then spawn,"gzip -f fuv/events/*.fits"
 jude_driver_uv,dname,/fuv,/notime
 
 ;Identify and remove bad files.
-jude_verify_Files,dname
+if (file_test("JUDE_VERIFY_FILES_DONE") eq 0)then $
+	jude_verify_files,dname
 
 ;Merge the data and run the automated registration. Should work in most cases.
 jude_uv_cleanup,/nuv
 jude_uv_cleanup,/fuv
+
+;Astrometry
+jude_call_astrometry,"nuv/images/"
+jude_call_astrometry,"fuv/images/",/fuv
+nuv_files=file_search("nuv/events/","*.fits.gz",count=nf)
+for i=0,nf-1 do jude_apply_astrometry,nuv_files[i]
+fuv_files=file_search("fuv/events/","*.fits.gz",count=nf)
+for i=0,nf-1 do jude_apply_astrometry,fuv_files[i]
 exit

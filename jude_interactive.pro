@@ -47,6 +47,7 @@
 ;   JM: Nov. 24, 2017 : Removed incorrect DQI setting.
 ;	JM: Dec. 11, 2017 : If redone then reread the files.
 ;	JM: Dec. 18, 2017 : If uv_base_dir is not defined I deduce from the header
+;	JM: Jan  03, 2018 : Added option to reset offsets
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -68,6 +69,7 @@
 ;Defaults = 1: Run automatically with standard defaults.
 ;Defaults = 2: Don't run centroid
 ;Defaults = 4: Use VIS offsets.
+;Defaults = 8; Reset offsets
 
 function set_limits_inter, grid2, xstar, ystar, boxsize, resolution,$
 					 xmin = xmin, ymin = ymin
@@ -442,7 +444,11 @@ if (param_ans eq -3)then stop
 				if (run_centroid ne 'n')then run_centroid = 'y'
 			endif
 			if ((defaults and 2) eq 2)then run_centroid = 'n'
-
+			if ((defaults and 8) eq 8)then begin
+				xoff_sc = xoff_sc*0
+				yoff_sc = yoff_sc*0
+			endif
+			
 ;Registration is obsolete so we won't run it anymore.
 			run_registration = 'n'
 ;			if ((defaults eq 0) and (run_centroid ne 'y'))then begin
@@ -651,6 +657,8 @@ print,"Starting centroid"
 			if (ans ne 'r')then begin
 				data_l2   = mrdfits(data_file,1,data_hdr0,/silent)
 			endif else if (ans eq 'r') then ans = 'y'
+			data_l2.xoff = xoff_sc
+			data_l2.yoff = yoff_sc
 			data_l2.dqi = save_dqi
 			if (ans eq "y")then goto, check_diag
 		endif
