@@ -12,6 +12,7 @@
 ;MODIFICATION HISTORY
 ;	JM: Nov. 24, 2017 : 
 ;	JM: Dec. 23, 2017 : Reset parameters each time.
+;	JM: Jan. 17, 2018 : Work both ways from FUV to NUV
 ;COPYRIGHT
 ;Copyright 2016 Jayant Murthy
 ;
@@ -72,6 +73,7 @@ pro jude_match_nuv_offsets, nuv_events_dir, fuv_events_dir, fuv_images_dir
 	ielem     = 0l
 	for ifile = 0, nuvfiles - 1 do begin
 		nuv_d2 = mrdfits(nuv_files[ifile], 1, nuvhdr, /silent)
+		nuv_detect = strcompress(sxpar(nuvhdr,"DETECTOR"),/rem)
 		q = where(nuv_d2.dqi eq 0, nq)
 		if (nq gt 0)then begin
 			mintime = min(nuv_d2[q].time)
@@ -95,6 +97,7 @@ pro jude_match_nuv_offsets, nuv_events_dir, fuv_events_dir, fuv_images_dir
 ;Read the Event Lists from the UV data
 		fuvdata = mrdfits(fuv_files[ifile], 1, fuvhdr, /silent)
 		nelems = n_elements(fuvdata)
+		fuv_detect = strcompress(sxpar(fuvhdr,"DETECTOR"),/rem)
 
 ;Initialize the offset array.
 		fuv_offsets = replicate({offsets, time:0d, xoff:0., yoff:0., att:0}, nelems)
@@ -159,10 +162,18 @@ pro jude_match_nuv_offsets, nuv_events_dir, fuv_events_dir, fuv_images_dir
 				nuv_yoff  = nuv_yoff[qnuv]
 				quadterp,nuv_times, nuv_xoff, fuv_offsets.time, xoff
 				quadterp,nuv_times, nuv_yoff, fuv_offsets.time, yoff
-				ang =  -35.0000
-				fuvdata.xoff = (xoff*cos(ang/!radeg) - yoff*sin(ang/!radeg))
-				fuvdata.yoff = -(xoff*sin(ang/!radeg) + yoff*cos(ang/!radeg))
-
+				if ((nuv_detect eq "NUV") and (fuv_detect eq "FUV"))then begin 
+					ang =  -35.0000
+					fuvdata.xoff = (xoff*cos(ang/!radeg) - yoff*sin(ang/!radeg))
+					fuvdata.yoff = -(xoff*sin(ang/!radeg) + yoff*cos(ang/!radeg))
+				endif else if ((nuv_detect eq "FUV") and (fuv_detect eq "NUV"))then begin 
+					ang =  145.0000
+					fuvdata.xoff = -((xoff*cos(ang/!radeg) - yoff*sin(ang/!radeg)))
+					fuvdata.yoff = -(-(xoff*sin(ang/!radeg) + yoff*cos(ang/!radeg)))
+				endif else begin
+					print,"Mismatch in detectors: ",nuv_detect," and ",fuv_detect
+					goto,nodata
+				endelse
 ;If there are no NUV offsets we set the offsets as unknown.				
 				ielem = 0l
 				while ((fuvdata[ielem].time lt min(nuv_times)) and $

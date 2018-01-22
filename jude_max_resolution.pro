@@ -342,7 +342,7 @@ pro jude_max_resolution, events_file, params, xstar, ystar, $
 				yoff = yoff_sc
 				print,"Changed at: ",itest, random_scale, random_multiplier, mean_old, mean_val
 				tv,bytscl(rebin(grid2, 512, 512), 0, .00001),512,0
-				for istar = 0, nstars - 1 do begin
+				for istar = 0, nstar - 1 do begin
 					xtv = (istar mod 2)*201
 					ytv = (istar/2)*201
 					display_h1, h1, max_im_value, xtv, ytv
@@ -355,9 +355,10 @@ pro jude_max_resolution, events_file, params, xstar, ystar, $
 					offsets=mrdfits(events_file,2,off_hdr, /silent)
 					sxaddhist,"jude_max_resolution has been run",data_hdr0
 					temp_file = file_basename(events_file)
-					temp_file = strmid(temp_file,0,strlen(temp_file)-3)
+					temp_file = strmid(temp_file,0,strpos(temp_file,".fits")) + ".fits"
 					mwrfits,data_l2,temp_file,data_hdr0,/create,/no_comment	
 					mwrfits,offsets,temp_file,off_hdr,/no_comment
+					mwrfits,grid2,"test.fits"
 				endif	
 			endif
 		

@@ -55,8 +55,13 @@ pro jude_call_client_py, inp_dir, out_dir, $
 ;I use the client.py program from Astrometry.net. 
 ;I assume that python is installed. The following line is the 
 ;location of the client.py program. It may be changed for the
-;local environment
+;local environment.
 	client_py = "/Users/jayanth/user/programs/client.py"
+;If not there, let us check the working directory
+	if (file_test(client_py) eq 0)then begin
+		client_py = "client.py"
+	endif
+;Else ask the user
 	if (file_test(client_py) eq 0)then begin
 		read,"Please enter the location of client.py: ",client_py
 		if (file_test(client_py) eq 0)then begin
@@ -74,10 +79,9 @@ pro jude_call_client_py, inp_dir, out_dir, $
 	if (n_elements(min_exp_time) eq 0)then min_exp_time = 10
 
 ;Open shell file for calling progams
-	openw,sh_unit,"call_python.sh",/get
 
 	for ifile = 0, nfiles - 1 do begin
-
+	
 ;Read the file header and required parameters
 		im_hdr = headfits(files[ifile], exten = 0, /silent)
 		exp_time = sxpar(im_hdr, "EXP_TIME")
@@ -88,10 +92,22 @@ pro jude_call_client_py, inp_dir, out_dir, $
 		if (keyword_set(new))then astr_done = "FALSE" else $
 			astr_done = strcompress(sxpar(im_hdr, "ASTRDONE"),/rem)
 
+		if (naxis eq 0)then begin
+			print,files[ifile]
+			print,"is probably an events file"
+		endif else if (astr_done eq "TRUE")then begin
+			print,"Astrometry already done for "
+			print,files[ifile]
+		endif else if (exp_time le min_exp_time)then begin
+			print,"Not enough exposure time in "
+			print,files[ifile]
+		endif
+		
 ;Don't bother doing if astrometry has already been done or if
 ;there is little exposure time.
-		if ((exp_time gt min_exp_time) and (astr_done ne "TRUE"))then begin
-;Call client.pt
+		if ((exp_time gt min_exp_time) and (astr_done ne "TRUE") and $
+			(naxis gt 0))then begin
+;Call client.py
 			str = "python " + client_py
 ;Upload file			
 			str = str + " -u " + files[ifile]
@@ -123,9 +139,11 @@ pro jude_call_client_py, inp_dir, out_dir, $
 
 ;Write out the string and start the astrometry
 			str = strcompress(str)
+			openw,sh_unit,"call_python.sh",/get
 			printf,sh_unit,str
 			spawn,str
-			
+			free_lun,sh_unit
+						
 ;If the relevant astrometry file exists then update the original file
 			tst = file_test(new_file)
 			if (tst gt 0)then begin
@@ -141,6 +159,5 @@ pro jude_call_client_py, inp_dir, out_dir, $
 
 		endif
 	endfor	;Onto the next file
-free_lun,sh_unit
 noproc:
 end

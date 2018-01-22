@@ -133,7 +133,9 @@ time0 = systime(1)
 ;Write VIS files into FITS files
 			out_data = {out, grid: fltarr(512,512), times:0d}
 			siz = size(grid,/dim)
-			out_data = replicate(out_data, siz[2])
+			if (n_elements(siz eq 3)) then begin
+				out_data = replicate(out_data, siz[2])
+			endif else goto,no_process
 			for i=0,nindex - 1 do begin
 				out_data[i].grid = grid[*,*,i]
 				out_data[i].times = times[i]

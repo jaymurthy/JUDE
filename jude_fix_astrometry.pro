@@ -134,16 +134,18 @@ function read_image_data, new_file, ref_file, new_im, new_time, new_hdr, ref_im,
 	ans='y'
 	while (ans eq 'y')do begin
 		tv,bytscl(rebin(new_im,512,512),0,new_max_value)
-		print,"Change scale? "
-		ans = get_kbrd(1)
-		if (ans eq 'y')then read,"New scale factor: ",new_max_value
+		ans_val = ""
+		print,"Current image scaling is ",new_max_value," Enter new value (else return)."
+		read,ans_val
+		if (ans_val ne "") then new_max_value = float(ans_val) else ans = 'n'
 	endwhile
 	ans='y'
 	while (ans eq 'y')do begin
 		tv,bytscl(rebin(ref_im,512,512), 0, ref_max_value),512,0
-		print,"Change scale? "
-		ans = get_kbrd(1)
-		if (ans eq 'y')then read,"New scale factor: ",ref_max_value
+		ans_val = ""
+		print,"Current image scaling is ",ref_max_value," Enter new value (else return)."
+		read,ans_val
+		if (ans_val ne "") then ref_max_value = float(ans_val) else ans = 'n'
 	endwhile
 	ra_cent  = sxpar(ref_hdr, "crval1")
 	dec_cent = sxpar(ref_hdr, "crval2")
@@ -174,17 +176,12 @@ function check_star_position, new_im, xstar, ystar,new_max_value
 	h1 = set_limits(new_im, xstar, ystar, boxsize, resolution, xmin = xmin, ymin = ymin)
 	siz = size(h1, /dimensions)
 	r1 = mpfit2dpeak(h1, a1)
-	if (finite(a1[4]) and finite(a1[5]))then begin
+	if (finite(a1[4]) and finite(a1[5]) and (a1[1] gt 0))then begin
 		xstar = xmin + a1[4]
 		ystar = ymin + a1[5]
 		star_found = 1
 	endif else begin
-		tcent = total(h1)
-		xcent = total(total(h1, 2)*indgen(siz[0]))/tcent
-		ycent = total(total(h1, 1)*indgen(siz[1]))/tcent
-		xstar = xmin + xcent
-		ystar = ymin + ycent
-		star_found = 1
+		star_found = 0
 	endelse
 	display_image, new_im, new_max_value, xstar, ystar, 0, 0
 	wset,1
@@ -197,7 +194,7 @@ end
 ;********************************* BEGIN MAIN PROGRAM *******************************
 pro jude_fix_astrometry, new_file, ref_file, $
 new_max_value = new_max_value, ref_max_value = ref_max_value,$
-nocheck = nocheck, force_starast=force_starast, debug = debug,$
+nocheck = nocheck, force_solve=force_solve, debug = debug,$
 star_pos = star_pos
 
 
@@ -272,12 +269,20 @@ star_pos = star_pos
 	display_image, ref_new, ref_max_value, new_refx, new_refy, 512, 0
 	plots,(star_posx/resolution)+ 512, star_posy/resolution, psym=1, symsize=3,col=65535,/dev
 	
-	print,"Pick points on the left and the right to find the approximate offset"
-	cursor,a,b,/dev & print,a,b
-	print,"Now on the right"
-	wait,1 ;To avoid double clicks
-	cursor,a1,b1,/dev & print,a1 - 512,b1
-	wait,1
+	a = 1024
+	while (a gt 512) do begin
+		print,"Pick points on the left and the right to find the approximate offset"
+		cursor,a,b,/dev & print,a,b
+		if (a ge 512)then print,"Invalid point clicked"
+		wait,1 ;(Avoiding double clicks)
+	endwhile
+	a1 = 0
+	while (a1 lt 512)do begin
+		print,"Now on the right"
+		cursor,a1,b1,/dev & print,a1 - 512,b1
+		if (a1 lt 0)then print,"invalid point clicked"
+		wait,1 ;(Avoiding double clicks)
+	endwhile
 	diffx = (a - (a1 - 512))*resolution
 	diffy = (b - b1)*resolution
 	ref_xstar = refxp[0]
@@ -303,63 +308,60 @@ star_pos = star_pos
 ;Check star position		
 		star_found = check_star_position(new_im, xstar, ystar,new_max_value)
 		if (star_found eq 0)then begin
-			print,"star not found, please select star"
-			cursor,xstar,ystar,/dev & xstar = xstar*resolution & ystar = ystar*resolution
-			star_found = check_star_position(new_im, xstar, ystar,new_max_value)
-		endif	
-		plots,/dev,xstar/resolution,ystar/resolution,psym=6,col=255,thick=2
-		ans = 'y'
-		if (not(keyword_set(nocheck)) and (star_found eq 1))then begin
-			print, "Is the star ok in the left? (default is y; x for next star)"
-			ans = get_kbrd(1)
-			print, "Please wait. Finished star: ",istar
-		endif
-		if (ans eq 's')then stop
-		if (ans eq 'n')then begin
-			print,"Select star in the left image."
-			cursor,xstar,ystar,/dev & xstar = xstar*resolution & ystar = ystar*resolution
-			star_found = check_star_position(new_im, xstar, ystar,new_max_value)
-		endif
-;Calculate the angle between the star and the reference as a sanity check.
-		dref = 1000
-		dnew = 0
-		if (nnewstars gt 0)then begin
-			dref = sqrt((new_refx[istar] - ref_xstar)^2 + (new_refy[istar] - ref_ystar)^2)
-			dnew = sqrt((xstar - newxp[0])^2 + (ystar - newyp[0])^2)
-		endif
-		display_image, ref_new, ref_max_value, new_refx, new_refy, 512, 0
-		if (star_found eq 1)then begin
-			if ((nnewstars eq 0) or (abs(dref - dnew) gt 2))then begin
-				print,"Distance between stars is: ",dref," and ",dnew," pixels."
-				if (ans ne 'x')then begin
-					print,"Star ok for astrometry? (Default is yes)"
-					ans = get_kbrd(1)
-				endif else ans = 'n'
-			endif
-		endif else ans = 'n'
-		if (ans eq 's')then stop
-
-		if (ans ne 'n')then begin
-			if (nnewstars eq 0)then begin
-				newxp     = xstar
-				newyp     = ystar
-				newra     = refra[istar]
-				newdec    = refdec[istar]
-				nnewstars = 1
-				diffx    = xstar - new_refx[istar]
-				diffy    = ystar - new_refy[istar]
-				ref_xstar = new_refx[istar]
-				ref_ystar = new_refy[istar]
+			print,"star not found"
+		endif else begin
+			if (nnewstars gt 0)then begin
+					dref = sqrt((new_refx[istar] - ref_xstar)^2 + (new_refy[istar] - ref_ystar)^2)
+					dnew = sqrt((xstar - newxp[0])^2 + (ystar - newyp[0])^2)
+					print,"Distance between stars should be: ",dref," and is ",dnew," pixels."
 			endif else begin
-				newxp     = [newxp, xstar]
-				newyp 	  = [newyp, ystar]
-				newra     = [newra, refra[istar]]
-				newdec    = [newdec, refdec[istar]]
-				nnewstars = nnewstars + 1
+				dref = 0
+				dnew = 0
 			endelse
-		endif
-		if (keyword_set(force_starast) and (nnewstars eq 3))then break
+			if (abs(dref - dnew) le 5)then begin
+				print, "Is the star ok in the left?"
+				print,"(default is y; n to select by hand; x for next star,b to skip all remaining stars)"
+				ans = get_kbrd(1)
+			endif else ans = 'x'
+			if (ans eq 'b')then break
+			if (ans eq 'n')then begin
+				print,"Select star in the left image."
+				cursor,xstar,ystar,/dev & xstar = xstar*resolution & ystar = ystar*resolution
+				star_found = check_star_position(new_im, xstar, ystar,new_max_value)
+				print,"Is star ok?
+				ans = get_kbrd(1)
+			endif
+			
+			if (ans eq 'y')then begin
+				plots,/dev,xstar/resolution,ystar/resolution,psym=6,col=255,thick=2
+;First star
+				if (nnewstars eq 0)then begin
+					newxp     = xstar
+					newyp     = ystar
+					newra     = refra[istar]
+					newdec    = refdec[istar]
+					nnewstars = 1
+					diffx    = xstar - new_refx[istar]
+					diffy    = ystar - new_refy[istar]
+					ref_xstar = new_refx[istar]
+					ref_ystar = new_refy[istar]
+				endif else begin
+					dref = sqrt((new_refx[istar] - ref_xstar)^2 + (new_refy[istar] - ref_ystar)^2)
+					dnew = sqrt((xstar - newxp[0])^2 + (ystar - newyp[0])^2)
+					print,"Distance between stars is: ",dref," and ",dnew," pixels."
+					if (abs(dref - dnew) le 5)then begin
+						newxp     = [newxp, xstar]
+						newyp 	  = [newyp, ystar]
+						newra     = [newra, refra[istar]]
+						newdec    = [newdec, refdec[istar]]
+						nnewstars = nnewstars + 1
+					endif
+				endelse
+			endif
+		endelse
+		if (not(keyword_set(force_solve)) and (nnewstars eq 3))then break
 	endfor
+	
 if keyword_set(debug)then begin
 	print,"Please check the parameters."
 	print,"newxp and newyp are the x and y position of the reference stars."
@@ -392,9 +394,78 @@ endif
 	
 ;If we have already defined the stars to be used for astronometry
 begin_corr:
+	while (n_elements(newra) lt 2)do begin
+	device, window_state = window_state
+		if (window_state[2] eq 0)then window, 2, xs = 640,  ys = 640
+		wset,0
+		print,"Please select points by hand"
+		a1 = 0
+		while (a1 lt 512)do begin
+			print,"Select star on the right"
+			cursor,a1,b1,/dev & print,a1 - 512,b1
+			if (a1 lt 0)then print,"invalid point clicked"
+			wait,1 ;(Avoiding double clicks)
+		endwhile
+		xstar = (a1 - 512)*resolution
+		ystar = b1*resolution
+		plots,(xstar/resolution)+ 512, ystar/resolution, psym=1, symsize=3,col=65535,/dev
+		h1 = set_limits(ref_new, xstar, ystar, 40, resolution, xmin = xmin, ymin = ymin)
+		xnew = xstar + diffx
+		ynew = ystar + diffy
+		plots,/dev,xnew/resolution,ynew/resolution,psym=4,col=255,thick=2
+		xyad,ref_hdr_new,xstar,ystar,ref_ra,ref_dec
+		print,"Coordinates are: ",ref_ra,ref_dec
+		wset,1
+		tv,bytscl(h1, 0, ref_max_value)
+		h2 = set_limits(new_im, xnew, ynew, 40, resolution, xmin = xmin2, ymin = ymin2)
+		wset,2
+		tv,bytscl(h2, 0, new_max_value)	
+		wshow,1
+		print,"Pick the location of the ref. point in the reference image"
+		wset,1
+		cursor,a1,b1,/dev
+		xstar = xmin + a1
+		ystar = ymin + b1
+		wset,2
+		wshow,2
+		wait,1
+		xnew = xstar + diffx
+		ynew = ystar + diffy
+		plots,/dev,xnew - xmin2, ynew - ymin2,/psym,col=255,symsize=2
+		print,"Pick the location of the point in the new image"
+		cursor,a1,b1,/dev
+		xnew = xmin2 + a1
+		ynew = ymin2 + b1
+		ans = ""
+		if (nnewstars gt 0)then begin
+			dref = sqrt((xstar - ref_xstar)^2 + (ystar - ref_ystar)^2)
+			dnew = sqrt((xnew - newxp[0])^2 + (ynew - newyp[0])^2)
+			print,"Distance between stars is: ",dref," and ",dnew," pixels."
+		endif
+		read,"Shall we include this star",ans
+		if (ans eq 'y')then begin
+			if (nnewstars eq 0)then begin
+				newxp     = xnew
+				newyp     = ynew
+				newra     = ref_ra
+				newdec    = ref_dec
+				nnewstars = 1
+				ref_xstar = xstar
+				ref_ystar = ystar
+			endif else begin
+				if (abs(dref - dnew) le 5)then begin
+					newxp     = [newxp, xstar]
+					newyp 	  = [newyp, ystar]
+					newra     = [newra, refra[istar]]
+					newdec    = [newdec, refdec[istar]]
+					nnewstars = nnewstars + 1
+				endif
+			endelse
+		endif
+	endwhile
 
 ;Calculate astrometry using either solve astro or starast	
-	if ((n_elements(newxp) gt 5) and (not(keyword_set(force_starast))))then begin
+	if ((n_elements(newxp) gt 5) and ((keyword_set(force_solve))))then begin
 		astr = solve_astro(newra, newdec, newxp, newyp, distort = 'tnx')
 		putast, new_hdr, astr
 	endif else if (n_elements(newra) gt 2)then begin

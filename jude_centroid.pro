@@ -5,7 +5,7 @@
 ;				jude_centroid, events_file, grid2, params, xstar, ystar, $
 ;				xoff = xoff, yoff = yoff ,$
 ;				boxsize = boxsize,$
-;				init_size = init_size, medsiz = medsiz, $
+;				init_size = init_size, medsize = medsize, $
 ;				test = test, cent_file = cent_file, display = display, $
 ;				nosave = nosave, defaults = defaults, new_star = new_star
 ; INPUTS:
@@ -57,6 +57,8 @@
 ;JM: Nov.  7, 2017: Cosmetic changes.
 ;JM: Nov. 25, 2017: Correct if a1 was not finite.
 ;JM: Dec. 23, 2017: Sped up by simplifying addition
+;JM: Jan. 14, 2017: Added medsize as an input to deal with extended sources.
+;JM: Jan. 19, 2017: Corrected output name
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -141,10 +143,10 @@ end
 pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 				xoff = xoff, yoff = yoff ,$
 				boxsize = boxsize,$
-				medsiz = medsiz, $
+				medsize = medsize, $
 				test = test, cent_file = cent_file, display = display, $
 				nosave = nosave, defaults = defaults, new_star = new_star,$
-				max_im_value = max_im_value
+				max_im_value = max_im_value,reset_off=reset_off
 
 ;Start with the NUV files. Typically there is more signal there and we are
 ;better able to centroid.
@@ -157,9 +159,9 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 	nbin = params.fine_bin
 ;BOXSIZE is the area around each point source. It should be more than the
 ;maximum mostion of the s/c in that duration
-	if (n_elements(boxsize) eq 0)then boxsize = 200
-;MEDSIZ is a  median filter the image to get rid of random hits
-	if (n_elements(medsiz) eq 0)then medsiz = 2
+	if (n_elements(boxsize) eq 0)then boxsize = params.boxsize*params.resolution
+;MEDSIZE is a  median filter the image to get rid of random hits
+	if (n_elements(medsize) eq 0)then medsize = params.medsize
 ;MAX_IM_VALUE for different images
 	if (n_elements(max_im_value) eq 0)then max_im_value = 0.00001 ;For display
 	
@@ -191,6 +193,10 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 ;If we haven't defined xoff and yoff set it to data_l2.xoff
 	if (n_elements(xoff) eq 0)then xoff = data_l2.xoff
 	if (n_elements(yoff) eq 0)then yoff = data_l2.yoff
+	if (keyword_set(reset_off))then begin
+		xoff = data_l2.xoff*0
+		yoff = data_l2.yoff*0
+	endif
 	q = where(abs(xoff) gt 500, nq)
 	if (nq gt 0)then xoff[q]= 0
 	q = where(abs(yoff) gt 500, nq)
@@ -201,38 +207,63 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 		nframes = jude_add_frames(data_l2, grid2, pixel_time,  params, $
 				xoff*params.resolution, $
 				yoff*params.resolution, /notime)
-		gsiz = size(grid2)		
+		gsiz = size(grid2, /dim)		
 		if (max(grid2) eq 0)then goto, noproc
 		par = params	
 		xstar = sxpar(data_hdr0, "XCENT", count = nxstar)
 		ystar = sxpar(data_hdr0, "YCENT", count = nystar)
 		xstar = xstar*params.resolution
-		ystar = ystar*params.resolution
-		
-		if ((nxstar eq 0) or (nystar eq 0))then begin
+		ystar = ystar*params.resolution		
+		if ((nxstar eq 0) or (nystar eq 0) or (keyword_set(new_star)))then begin
 			x = 0
 			thresh = .0005
-			while ((x[0] eq 0) and (thresh gt 1e-6))do begin
+			nq = 0
+			while ((nq eq 0) and (thresh gt 1e-6))do begin
+				x = 0 & y = 0 & flux = 0
 				find, grid2, x, y, flux, sharp, round, thresh, 2,[0.2,2.0],[-2.0,2.0],/silent
 				thresh = thresh/2.
+				d = sqrt((x - gsiz[0]/2)^2 + (y - gsiz[1]/2)^2)
+				q=where((d lt (gsiz[0]/2 - 500)), nq)
 			endwhile
-		
+			
+			if (nq gt 0) then begin
+				flux = flux[q]
+				x    = x[q]
+				y    = y[q]
+			endif
 			s = reverse(sort(flux))
-			xstar = x[s[0]]
-			ystar = y[s[0]]
+			flux = flux[s[0]]
+			if (flux gt 0)then begin
+				xstar = x[s[0]]
+				ystar = y[s[0]]
+			endif else begin
+				q = where(grid2 eq max(grid2))
+				xstar = q[0] mod gsiz[0]
+				ystar = q[0]/gsiz[0]
+			endelse
 			
 		endif
+;If we have a window open keep it, otherwise pop up a default window
+		if (display ne 0)then begin
+			device,window_state = window_state
+			if (window_state[0] eq 0)then $
+				window, 0, xs = 1024, ys = 512, xp = 10, yp = 500
+			ans_val = string(max_im_value)
+			while (ans_val ne "")do begin
+				tv,bytscl(rebin(grid2,512,512),0,max_im_value)
+				if (not(keyword_set(defaults)))then begin
+					read,"Change image scaling (press enter if ok)",ans_val
+					if (ans_val ne "")then max_im_value = float(ans_val)
+				endif
+			endwhile
+		endif
+
 		ans = 'n'
 		while (ans eq 'n') do begin
-		;If we have a window open keep it, otherwise pop up a default window
-			if (display ne 0)then begin
-				device,window_state = window_state
-				if (window_state[0] eq 0)then $
-					window, 0, xs = 1024, ys = 512, xp = 10, yp = 500	
-					tv,bytscl(rebin(grid2,512,512),0,max_im_value)
-				plots,/dev,xstar/params.resolution,ystar/params.resolution,$
+		if (display ne 0)then $
+			plots,/dev,xstar/params.resolution,ystar/params.resolution,$
 					psym=4,col=255,thick=2
-			endif
+
 			h1 = set_limits(grid2, xstar, ystar, boxsize, params.resolution,$
 							xmin = xmin, ymin = ymin)
 			r1 = mpfit2dpeak(h1, a1)
@@ -256,17 +287,22 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 			if (not(keyword_set(defaults)) and (display ne 0))then $
 				read,"Is this star ok (s for single frame; q to quit)? ", ans
 			if (ans eq 'd')then begin
-				display = 0
+				display = 1
 				ans = 'y'
-			endif
+			endif else if ((ans eq 'y') or (ans eq ""))then display = 0
 			if (ans eq 'q')then goto,noproc
 			if (ans eq 'n')then begin
 				print,"Select star"
 				cursor,a,b,/dev
 				xstar = a*params.resolution
 				ystar = b*params.resolution
-				print,"boxsize is now: ", boxsize
-				read,"Enter new boxsize: ",boxsize 
+				h1 = set_limits(grid2, xstar, ystar, boxsize, params.resolution, $
+							xmin = xmin, ymin = ymin)
+				tv,bytscl(h1, 0, 0.0001), 512, 0
+				print,"Fine tune position on right image."
+				cursor,a,b,/dev & a = a - 512
+				xstar = xmin + a
+				ystar = ymin + b
 			endif
 			while (ans eq 's')do begin
 				g2 = grid2*0
@@ -289,8 +325,6 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 					cursor,a,b,/dev
 					xstar = a*params.resolution
 					ystar = b*params.resolution
-					print,"boxsize is now: ", boxsize
-					read,"Enter new boxsize: ",boxsize
 					ans = 'n'
 				endif else ans = 's'
 			endwhile
@@ -308,6 +342,16 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 	xcent = fltarr(ngrid)-1e6
 	ycent = fltarr(ngrid)-1e6
 	nlost = 0
+	if (not(keyword_set(defaults)))then begin
+		print,"boxsize is now: ", boxsize
+		ans =''
+		read,"Enter new boxsize (or press enter): ",ans
+		if (ans ne '')then boxsize = fix(ans)
+		print,"median filter is now: ",medsize
+		ans=''
+		read,"Enter new value - 0 for no filtering (extended sources): ",ans
+		if (ans ne '')then medsize = fix(ans)
+	endif
 	
 ;Loop through data to centroid
 	start_frame = params.min_frame
@@ -333,7 +377,7 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 				device,window_state = window_state
 				if (window_state[0] eq 0)then $
 					window, 0, xs = 1024, ys = 512, xp = 10, yp = 500	
-				tv,bytscl(rebin(grid2,512,512),0,max_im_value)
+				tv,bytscl(rebin(grid2,512,512),0,.0001)
 			endif
 			
 ;Define a small array around star
@@ -342,11 +386,14 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 			siz = size(carray, /dimensions)
 			if (siz[0] lt 2)then stop
 ;Median filter to get rid of spots
-			carray = median(carray, medsiz)
-			carray(0:medsiz-1,*)=0
-			carray(siz[0]-medsiz-1:siz[0]-1,*) = 0
-			carray[*,0:medsiz-1] = 0
-			carray[*,siz[1] - medsiz-1:siz[1] - 1] = 0
+			if ((params.resolution ge 4) and (medsize gt 0))then begin
+				carray = median(carray, medsize)
+				carray(0:medsize-1,*)=0
+				carray(siz[0]-medsize-1:siz[0]-1,*) = 0
+				carray[*,0:medsize-1] = 0
+				carray[*,siz[1] - medsize-1:siz[1] - 1] = 0
+			endif
+				
 			if (display eq 1)then begin
 				if ((siz[0] lt 512) and (siz[1] lt 512))then begin
 					tv,bytscl(rebin(carray,siz[0]*(512/siz[0]), siz[1]*(512/siz[1])), 0, 0.0001), 512, 0
@@ -354,6 +401,7 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 			endif
 			tcent = total(carray)
 		endif else tcent = 0
+		
 		if (tcent gt 0)then begin
 ;Find new centroid so we keep moving with the s/c
 			xcent[i] = xmin + total(total(carray, 2)*indgen(siz[0]))/tcent 
@@ -402,7 +450,6 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 		quadterp,xindex[q],xcent[q]-xcent[q[0]],findgen(ndata_l2),xoff,missing=-1e6
 		quadterp,xindex[q],ycent[q]-ycent[q[0]],findgen(ndata_l2),yoff,missing=-1e6
 		qmiss = where((xoff gt -1e6) or (yoff gt -1e6),nmiss)
-
 		if (nmiss gt 0) then begin
 			xoff[qmiss] = -xoff[qmiss]
 			yoff[qmiss] = -yoff[qmiss]
@@ -452,7 +499,8 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 		sxaddhist,"jude_centroid has been run",data_hdr0
 		sxaddpar,data_hdr0, "XCENT", xstar_first/params.resolution, "XPOS of centroid star"
 		sxaddpar,data_hdr0, "YCENT", ystar_first/params.resolution, "YPOS of centroid star"
-		temp_file = strmid(events_file,0,strlen(events_file)-3)
+		
+		temp_file = strmid(events_file,0,strpos(events_file,".fits")) + ".fits"
 		print,"writing events file to ", temp_file
 		mwrfits,data_l2,temp_file,data_hdr0,/create,/no_comment	
 		mwrfits,offsets,temp_file,off_hdr,/no_comment

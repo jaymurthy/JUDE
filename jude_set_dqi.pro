@@ -38,6 +38,7 @@
 ;	JM: Nov. 21, 2017: Changed to using common blocks
 ;	JM: Nov. 27, 2017: Was throwing away too much data from filter/frame checks.
 ;	JM: Dec. 27, 2017: Error in indices.
+;	JM: Jan. 20, 2017: Error in filter selection.
 ; COPYRIGHT:
 ;Copyright 2016 Jayant Murthy
 ;
@@ -155,11 +156,13 @@ function jude_set_dqi, data_hdr, out_hdr
 	frame = data_l1a.frameno
 
 ;Get the filter
-	hist_f = histogram(hk_new.filter, min = 0, bin = 1)
-	max_filt = where(hist_f eq max(hist_f))
-	max_filt = max_filt[0]
-	q  = where(abs(max_filt - filter_angle) lt filter_fuzz, nq)
-	q = q[0]
+	if (n_elements(hk_new) gt 3)then begin
+		hist_f = histogram(hk_new.filter, min = 0, bin = 1)
+		max_filt = where(hist_f eq max(hist_f))
+		max_filt = max_filt[0]
+		q  = where(abs(max_filt - filter_angle) lt filter_fuzz, nq)
+		q = q[0]
+	endif else q = 0
 	nom_filter_angle = filter_angle[q]
 	nom_filter = filter[q]
 	sxaddpar,out_hdr,"FILTER", nom_filter,$

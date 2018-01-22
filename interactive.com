@@ -13,17 +13,18 @@ params = jude_params()
 
 ;Default directory for NUV files.
 uv_base_dir = params.def_nuv_dir
+if (n_elements(notime) eq 0)then notime = 1
 
 ;Find all the files in the given directory. Note that I only
 ;search for compressed files here.
 files = file_search(uv_base_dir + "/events/*.gz", count = nf)
-
+if (n_elements(fuv_only) gt 0)then nf=0
 ;Interchange the comments on the next two lines if you only want
 ;to run for a single file.
 ;read, "which file number: ",ifile
 for ifile = 0, nf - 1 do $
 JUDE_INTERACTIVE,files[ifile], uv_base_dir, data, grid, offsets, $
-             params = params, max_im_value = max_im_value
+             params = params, max_im_value = max_im_value, notime = notime
 
 ;Repeat for FUV files.
 ;Reset parameters.
@@ -34,10 +35,11 @@ uv_base_dir = params.def_fuv_dir
 
 ;Search for FUV files
 files = file_search(uv_base_dir + "/events/*.gz", count = nf)
+if (n_elements(nuv_only) gt 0)then nf=0
 
 ;Interchange the comments on the next two lines if you only want
 ;to run for a single file.
 ;read, "which file number: ",ifile
 for ifile = 0, nf - 1 do $
 JUDE_INTERACTIVE,files[ifile], uv_base_dir, data, grid, offsets, $
-            params = params, max_im_value = max_im_value
+            params = params, max_im_value = max_im_value, notime = notime

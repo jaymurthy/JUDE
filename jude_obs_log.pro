@@ -13,6 +13,7 @@
 ;	JM: Sept 8, 2016
 ;	JM: May 23, 2017 Version 3.1
 ;	JM: Aug. 22, 2017: tstart and tend now include all data for consistency
+;	JM: Jan. 13, 2017: Corrected for case in which there are only two elements
 ; COPYRIGHT
 ;Copyright 2016 Jayant Murthy
 ;
@@ -44,15 +45,15 @@ pro jude_obs_log, output_file, uv_base_dir, params
 ;Check to see if Level2 file exists
 		l2_file = files[ifile]		
 		data_l2 = mrdfits(l2_file,1,hdr,/silent)
+		ndata = n_elements(data_l2)
 		im_name = file_basename(l2_file)
 		im_name = strmid(im_name, 0, strlen(im_name) - 12)
 		im_name =  uv_base_dir + params.image_dir + im_name + ".fits.gz"
 		q = where(data_l2.dqi eq 0, nq)
-		if (nq gt 0)then begin
+		if ((nq gt 0) and (ndata gt 2))then begin
 			tstart = min(data_l2.time)
 			tend   = max(data_l2.time)
 ;What is the time per frame?
-			ndata = n_elements(data_l2)
 			dtimes = (data_l2[1:ndata-1].time - data_l2[0:ndata-2].time)
 			h=histogram(dtimes,min=0,bin=.00001,max=.1)
 			dtime = where(h eq max(h))*.00001

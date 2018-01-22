@@ -48,6 +48,8 @@
 ;	JM: Dec. 11, 2017 : If redone then reread the files.
 ;	JM: Dec. 18, 2017 : If uv_base_dir is not defined I deduce from the header
 ;	JM: Jan  03, 2018 : Added option to reset offsets
+;	JM: Jan. 16, 2018 : Interface changes.
+;	JM: Jan. 20, 2018 : Added median filter to offsets.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -67,7 +69,7 @@
 ;************************ Defaults *********************************
 ;Defaults = 0: Normal interactive behavior. If defaults > 0, always noninteractive.
 ;Defaults = 1: Run automatically with standard defaults.
-;Defaults = 2: Don't run centroid
+;Defaults = 2: Don't run centroid; also median filter data by 500 frames
 ;Defaults = 4: Use VIS offsets.
 ;Defaults = 8; Reset offsets
 
@@ -88,21 +90,6 @@ function set_limits_inter, grid2, xstar, ystar, boxsize, resolution,$
 		h1 = fltarr(2*boxsize*resolution, 2*boxsize*resolution)
 	endif else h1 = grid2[xmin:xmax, ymin:ymax]
 	return,h1
-end
-
-
-pro uv_or_vis, xoff_vis, yoff_vis, xoff_uv, yoff_uv, xoff_sc, yoff_sc, dqi
-
-		print,"Do you want to use visible offsets; default is UV? :"
-		ans=get_kbrd(1)
-		if (ans eq "y")then begin
-			xoff_sc = xoff_vis
-			yoff_sc = yoff_vis
-		endif else begin
-			print, "Using UV offsets"
-			xoff_sc = xoff_uv
-			yoff_sc = yoff_uv
-		endelse
 end
 
 pro get_offsets, data_l2, offsets, xoff_vis, yoff_vis, xoff_uv, yoff_uv, $
@@ -385,9 +372,9 @@ check_diag:
 					
 		if (defaults ne 0)then ans = 'n' else ans = "y"
 		while (ans eq "y") do begin
-			print,"Redisplay?"
-			ans = get_kbrd(1)
-			if (ans eq 'y')then read, max_im_value
+			ans_val = ""
+			read,"Enter new image scaling (enter if ok)?",ans_val
+			if (ans_val ne "")then max_im_value = float(ans_val) else ans = "n"
 			tv,bytscl(rebin(grid, 512, 512), 0, max_im_value)
 		endwhile
 		
@@ -423,9 +410,6 @@ if (param_ans eq -3)then stop
 							xoff_sc, yoff_sc, dqi
 							
 ;Figure out what we want to do.
-			if (defaults eq 0)then $
-				UV_OR_VIS, xoff_vis, yoff_vis, xoff_uv, yoff_uv, $
-					  xoff_sc, yoff_sc, dqi
 					  
 			if ((defaults and 4) eq 4)then begin
 				print,"Using VIS data"
@@ -435,15 +419,23 @@ if (param_ans eq -3)then stop
 		
 			run_centroid = 'y'
 			if (defaults eq 0)then begin
-				print,"Run centroid (y/n)? Default is y (r to reset offsets)."
+				print,"Run centroid (y/n/v/r)? (v to us VIS, r to reset offsets)."
 				run_centroid = get_kbrd(1)
 				if (run_centroid eq 'r')then begin
 					xoff_sc = xoff_sc*0
 					yoff_sc = yoff_sc*0
 				endif
+				if (run_centroid eq 'v')then begin
+					xoff_sc = xoff_vis
+					yoff_sc = yoff_vis
+				endif
 				if (run_centroid ne 'n')then run_centroid = 'y'
 			endif
-			if ((defaults and 2) eq 2)then run_centroid = 'n'
+			if ((defaults and 2) eq 2)then begin
+				run_centroid = 'n'
+				xoff_sc = median(xoff_sc,500)
+				yoff_sc = median(yoff_sc,500)
+			endif
 			if ((defaults and 8) eq 8)then begin
 				xoff_sc = xoff_sc*0
 				yoff_sc = yoff_sc*0
@@ -509,11 +501,10 @@ print,"Starting centroid"
 				xoff_cent = xoff_sc
 				yoff_cent = yoff_sc
 				if (defaults eq 0)then display = 1 else display=0
-				
 				jude_centroid, data_file, grid, p, xcent, ycent,$
 					xoff = xoff_cent, yoff = yoff_cent,$
 					/nosave, defaults = defaults, /new_star,$
-					max_im_value = max_im_value, display = display
+					display = display,medsize = params.medsize
 				xoff_sc = xoff_cent
 				yoff_sc = yoff_cent
 			endif
@@ -524,7 +515,7 @@ print,"Starting centroid"
 				data_l2.dqi = dqi
 				nframes = jude_add_frames(data_l2, grid, pixel_time,  params, $
 							xoff_sc*params.resolution, yoff_sc*params.resolution,$
-							/notime, debug = 100, ref_frame = ref_frame)
+							/notime, debug = 1000, ref_frame = ref_frame)
 			endif else begin
 				data_l2.dqi = dqi
 				nframes = jude_add_frames(data_l2, grid, pixel_time,  params, $
@@ -539,9 +530,9 @@ print,"Starting centroid"
 			endelse			
 			while (ans eq "y") do begin
 				tv,bytscl(rebin(grid,512,512),0,max_im_value)
-				print,"Redisplay? "
-				ans=get_kbrd(1)
-				if (ans eq "y")then read,max_im_value
+				ans_val = ""
+				read,"Enter new image scaling (press return if ok)  ", ans_val
+				if (ans_val ne "")then max_im_value = float(ans_val) else ans = "n"
 			endwhile
 			if (defaults eq 0)then begin
 				ans = "n"
@@ -640,14 +631,12 @@ print,"Starting centroid"
 					sxaddpar,data_hdr0, "XCENT", xcent, "XPOS of centroid star"
 					sxaddpar,data_hdr0, "YCENT", ycent, "YPOS of centroid star"
 				endif
-				if (defaults le 10)then begin
 				print,"writing events file to ",t
-					mwrfits,temp,t,data_hdr0,/create,/no_comment
-					if (n_elements(off_hdr) gt 0)then begin
-						mwrfits,offsets,t,off_hdr,/no_comment
-					endif else mwrfits,offsets,t
-					spawn,"gzip -fv " + t
-				endif
+				mwrfits,temp,t,data_hdr0,/create,/no_comment
+				if (n_elements(off_hdr) gt 0)then begin
+					mwrfits,offsets,t,off_hdr,/no_comment
+				endif else mwrfits,offsets,t
+				spawn,"gzip -fv " + t
 			endif ;End write files
 			if (defaults eq 0)then begin
 				ans = "n"

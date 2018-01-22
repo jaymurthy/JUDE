@@ -108,7 +108,7 @@ if (file_test(uv_base_dir + params.temp_dir) gt 0)then $
 	for ifile = 0, nfiles - 1 do begin
 		params = jude_params()
 		JUDE_INTERACTIVE,files[ifile], uv_base_dir, data, grid, offsets, $
-			 params = params, defaults=4
+			 params = params, defaults=8
 	endfor
 	obs_file_in  = uv_base_dir + "observation.csv"
 	obs_file_out = uv_base_dir + "final_obslog.csv"

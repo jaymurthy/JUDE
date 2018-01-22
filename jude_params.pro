@@ -40,6 +40,8 @@ function jude_params
 		ref_frame:	0l,	 $; Reference frame for add frames
 		coarse_bin: 200, $; Number of bins to get decent S/N on a point source
 		fine_bin:	20,	 $; Use 2-d correlations to get better pointing
+		medsize:    2,   $; Used in jude_centroid (set to 0 for extended sources)
+		boxsize:   30,  $: Used in jude_centroid for searches
 		ps_threshold_fuv: 3.e-4, 	$; Use 3e-4 for FUV, 
 		ps_threshold_nuv: 1.5e-3,	$; 1.5e-3 for NUV
 		flat_field: "No flat field", $; Calibration flat field
