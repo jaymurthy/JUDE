@@ -305,7 +305,8 @@ star_pos = star_pos
 ;Centroid to find the exact position. Note that I always assume the 
 ;highest possible resolution.
 
-;Check star position		
+;Check star position
+ans=""
 		star_found = check_star_position(new_im, xstar, ystar,new_max_value)
 		if (star_found eq 0)then begin
 			print,"star not found"
@@ -321,7 +322,7 @@ star_pos = star_pos
 			if (abs(dref - dnew) le 5)then begin
 				print, "Is the star ok in the left?"
 				print,"(default is y; n to select by hand; x for next star,b to skip all remaining stars)"
-				ans = get_kbrd(1)
+				read,ans
 			endif else ans = 'x'
 			if (ans eq 'b')then break
 			if (ans eq 'n')then begin
@@ -329,13 +330,15 @@ star_pos = star_pos
 				cursor,xstar,ystar,/dev & xstar = xstar*resolution & ystar = ystar*resolution
 				star_found = check_star_position(new_im, xstar, ystar,new_max_value)
 				print,"Is star ok?
-				ans = get_kbrd(1)
+				read,ans
 			endif
-			
+
+			if (ans eq "")then ans = "y"
 			if (ans eq 'y')then begin
 				plots,/dev,xstar/resolution,ystar/resolution,psym=6,col=255,thick=2
 ;First star
 				if (nnewstars eq 0)then begin
+					print,"Using this star for astrometry"
 					newxp     = xstar
 					newyp     = ystar
 					newra     = refra[istar]
@@ -355,7 +358,8 @@ star_pos = star_pos
 						newra     = [newra, refra[istar]]
 						newdec    = [newdec, refdec[istar]]
 						nnewstars = nnewstars + 1
-					endif
+						print,"Using this star for astrometry"
+					endif else print,"Not using this star"
 				endelse
 			endif
 		endelse
