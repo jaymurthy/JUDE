@@ -433,8 +433,10 @@ if (param_ans eq -3)then stop
 			endif
 			if ((defaults and 2) eq 2)then begin
 				run_centroid = 'n'
-				xoff_sc = median(xoff_sc,500)
-				yoff_sc = median(yoff_sc,500)
+				if (n_elements(xoff_sc) gt 1000)then begin
+					xoff_sc = median(xoff_sc,500)
+					yoff_sc = median(yoff_sc,500)
+				endif
 			endif
 			if ((defaults and 8) eq 8)then begin
 				xoff_sc = xoff_sc*0

@@ -214,7 +214,7 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 		ystar = sxpar(data_hdr0, "YCENT", count = nystar)
 		xstar = xstar*params.resolution
 		ystar = ystar*params.resolution		
-		if ((nxstar eq 0) or (nystar eq 0) or (keyword_set(new_star)))then begin
+		if ((nxstar eq 0) or (nystar eq 0))then begin
 			x = 0
 			thresh = .0005
 			nq = 0
@@ -276,9 +276,9 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 							xmin = xmin, ymin = ymin)
 			siz = size(h1,/dimensions)
 			if (display ne 0)then begin
-				if (siz[0] lt 512)then begin
-					tv,bytscl(rebin(h1,siz[0]*(512/siz[0]), siz[1]*(512/siz[1])), 0, 0.0001), 512, 0
-				endif else tv,bytscl(h1, 0, 0.0001), 512, 0
+				tvxfact = (512/siz[0]) > 1
+				tvyfact = (512/siz[1]) > 1
+				tv,bytscl(rebin(h1,siz[0]*tvxfact, siz[1]*tvyfact), 0, 0.0001), 512, 0
 				print,"Width is ",a1[2], a1[3]," Star pos: ",xstar, ystar
 			endif
 			ans = 'y'
@@ -287,9 +287,9 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 			if (not(keyword_set(defaults)) and (display ne 0))then $
 				read,"Is this star ok (s for single frame; q to quit)? ", ans
 			if (ans eq 'd')then begin
-				display = 1
+				star_follow = 1
 				ans = 'y'
-			endif else if ((ans eq 'y') or (ans eq ""))then display = 0
+			endif else if ((ans eq 'y') or (ans eq ""))then star_follow = 0
 			if (ans eq 'q')then goto,noproc
 			if (ans eq 'n')then begin
 				print,"Select star"
@@ -298,11 +298,14 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 				ystar = b*params.resolution
 				h1 = set_limits(grid2, xstar, ystar, boxsize, params.resolution, $
 							xmin = xmin, ymin = ymin)
-				tv,bytscl(h1, 0, 0.0001), 512, 0
+				siz = size(h1, /dimension)
+				tvxfact = (512/siz[0]) > 1
+				tvyfact = (512/siz[1]) > 1
+				tv,bytscl(rebin(h1,siz[0]*tvxfact, siz[1]*tvyfact), 0, 0.0001), 512, 0
 				print,"Fine tune position on right image."
 				cursor,a,b,/dev & a = a - 512
-				xstar = xmin + a
-				ystar = ymin + b
+				xstar = xmin + a/tvxfact
+				ystar = ymin + b/tvyfact
 			endif
 			while (ans eq 's')do begin
 				g2 = grid2*0
@@ -345,6 +348,14 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 	if (not(keyword_set(defaults)))then begin
 		print,"boxsize is now: ", boxsize
 		ans =''
+		if (display eq 1)then begin
+			xplot1 = ((xstar - boxsize - xmin) > 0)*tvxfact + 512
+			xplot2 = ((xstar + boxsize - xmin))*tvxfact + 512
+			yplot1 = (((ystar - boxsize - ymin)) > 0)*tvyfact
+			yplot2 = ((ystar + boxsize - ymin))*tvyfact
+			plots,/dev,[xplot1, xplot1, xplot2, xplot2, xplot1],$
+					   [yplot1, yplot2, yplot2, yplot1, yplot1],col=255
+		endif
 		read,"Enter new boxsize (or press enter): ",ans
 		if (ans ne '')then boxsize = fix(ans)
 		print,"median filter is now: ",medsize
@@ -372,7 +383,7 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 				xoff*par.resolution, $
 				yoff*par.resolution, ref_frame = ref_frame)
 
-			if (display eq 1)then begin
+			if ((display eq 1) and (star_follow eq 1))then begin
 ;If we have a window open keep it, otherwise pop up a default window
 				device,window_state = window_state
 				if (window_state[0] eq 0)then $
@@ -382,7 +393,7 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 			
 ;Define a small array around star
 			carray = set_limits(grid2, xstar, ystar, boxsize, params.resolution, $
-								xmin = xmin, ymin = ymin, display = display)
+								xmin = xmin, ymin = ymin, display = star_follow)
 			siz = size(carray, /dimensions)
 			if (siz[0] lt 2)then stop
 ;Median filter to get rid of spots
@@ -394,7 +405,7 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 				carray[*,siz[1] - medsize-1:siz[1] - 1] = 0
 			endif
 				
-			if (display eq 1)then begin
+			if ((display eq 1) and (star_follow eq 1))then begin
 				if ((siz[0] lt 512) and (siz[1] lt 512))then begin
 					tv,bytscl(rebin(carray,siz[0]*(512/siz[0]), siz[1]*(512/siz[1])), 0, 0.0001), 512, 0
 				endif else tv,bytscl(carray, 0, 0.0001), 512, 0
@@ -409,7 +420,7 @@ pro jude_centroid, events_file, grid2, params, xstar, ystar, $
 			xstar = xcent[i]
 			ystar = ycent[i]
 
-			if (display eq 1)then begin
+			if ((display eq 1) and (star_follow eq 1))then begin
 				plots,/dev,xcent[i]/params.resolution,ycent[i]/params.resolution,$
 					/psym,symsize=3,col=255
 			endif

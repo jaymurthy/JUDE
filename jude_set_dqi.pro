@@ -39,6 +39,7 @@
 ;	JM: Nov. 27, 2017: Was throwing away too much data from filter/frame checks.
 ;	JM: Dec. 27, 2017: Error in indices.
 ;	JM: Jan. 20, 2017: Error in filter selection.
+;	JM: Feb. 07, 2017: Was too rigid in filter selection
 ; COPYRIGHT:
 ;Copyright 2016 Jayant Murthy
 ;
@@ -110,7 +111,7 @@ function jude_set_dqi, data_hdr, out_hdr
 ;The filter from the file is sometimes wrong so I recalculate it based on
 ;the filter angle. I find the nominal filter angle below and use it to check
 ;later.
-	filter_fuzz = 1	;Allow a 1 degree recording error.
+	filter_fuzz = 3	;Allow a 3 degree recording error.
 	q = where(filter eq nom_filter)
 	nom_filter_angle = filter_angle(q)
 	filter_change = 0; I only want to use one filter in the image

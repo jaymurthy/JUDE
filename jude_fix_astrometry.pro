@@ -154,8 +154,8 @@ function read_image_data, new_file, ref_file, new_im, new_time, new_hdr, ref_im,
 return,1
 end
 
-function check_star_position, new_im, xstar, ystar,new_max_value
-	boxsize = 20
+function check_star_position, new_im, xstar, ystar, new_max_value, xmin, ymin
+	boxsize = 10
 	siz = size(new_im, /dimension)
 	resolution = siz[0]/512
 	
@@ -183,11 +183,13 @@ function check_star_position, new_im, xstar, ystar,new_max_value
 	endif else begin
 		star_found = 0
 	endelse
+	h1 = set_limits(new_im, xstar, ystar, boxsize, resolution, xmin = xmin, ymin = ymin)
 	display_image, new_im, new_max_value, xstar, ystar, 0, 0
 	wset,1
 	erase
 	tv,bytscl(rebin(h1,siz[0]*(640/siz[0]),siz[1]*(640/siz[1])) ,0,new_max_value)
 	plots,(xstar - xmin)*(640/siz[0]),(ystar - ymin)*(640/siz[1]),/psym,symsize=3,col=255,/dev
+	
 	wset,0
 	return,star_found
 end
@@ -199,6 +201,7 @@ star_pos = star_pos
 
 
 ;Initialization
+print,"Version date: Jan. 26, 2018"
 	if (n_elements(new_max_value) eq 0)then new_max_value = 0.0002
 	if (n_elements(ref_max_value) eq 0)then ref_max_value = 0.0002
 	device, window_state = window_state
@@ -398,55 +401,80 @@ endif
 	
 ;If we have already defined the stars to be used for astronometry
 begin_corr:
-	while (n_elements(newra) lt 2)do begin
-	device, window_state = window_state
-		if (window_state[2] eq 0)then window, 2, xs = 640,  ys = 640
-		wset,0
+	while (nnewstars lt 2)do begin
 		print,"Please select points by hand"
 		a1 = 0
 		while (a1 lt 512)do begin
 			print,"Select star on the right"
-			cursor,a1,b1,/dev & print,a1 - 512,b1
+			wset,0
+			wshow,0
+			cursor,a1,b1,/dev
 			if (a1 lt 0)then print,"invalid point clicked"
 			wait,1 ;(Avoiding double clicks)
 		endwhile
 		xstar = (a1 - 512)*resolution
 		ystar = b1*resolution
-		plots,(xstar/resolution)+ 512, ystar/resolution, psym=1, symsize=3,col=65535,/dev
-		h1 = set_limits(ref_new, xstar, ystar, 40, resolution, xmin = xmin, ymin = ymin)
-		xnew = xstar + diffx
-		ynew = ystar + diffy
-		plots,/dev,xnew/resolution,ynew/resolution,psym=4,col=255,thick=2
+		star_found = check_star_position(ref_new, xstar, ystar,ref_max_value, xmin, ymin)
+		wset,0
+		display_image, ref_new, ref_max_value, xstar, ystar, 512, 0
+
+		wshow,1
+		read,"Is the position of the star ok in the zoomed image? (default is y)",ans
+		if (ans eq 'n')then begin
+			print,"Please click on the desired pixel in the zoomed image"
+			wset,1
+			wshow
+			cursor,/dev,a1,b1
+			xstar = a1 + xmin
+			ystar = b1 + ymin
+			wset,0
+		endif
 		xyad,ref_hdr_new,xstar,ystar,ref_ra,ref_dec
 		print,"Coordinates are: ",ref_ra,ref_dec
-		wset,1
-		tv,bytscl(h1, 0, ref_max_value)
-		h2 = set_limits(new_im, xnew, ynew, 40, resolution, xmin = xmin2, ymin = ymin2)
-		wset,2
-		tv,bytscl(h2, 0, new_max_value)	
-		wshow,1
-		print,"Pick the location of the ref. point in the reference image"
-		wset,1
-		cursor,a1,b1,/dev
-		xstar = xmin + a1
-		ystar = ymin + b1
-		wset,2
-		wshow,2
-		wait,1
 		xnew = xstar + diffx
 		ynew = ystar + diffy
-		plots,/dev,xnew - xmin2, ynew - ymin2,/psym,col=255,symsize=2
-		print,"Pick the location of the point in the new image"
-		cursor,a1,b1,/dev
-		xnew = xmin2 + a1
-		ynew = ymin2 + b1
-		ans = ""
+		star_found = check_star_position(new_im, xnew, ynew,new_max_value, xmin, ymin)
+		read,"Is the star ok in the left (Default is y)",ans
+		if (ans eq 'n')then begin
+			a1 = 1000
+			while (a1 gt 512)do begin
+				print,"Select star on the left"
+				wset,0
+				wshow,0
+				cursor,a1,b1,/dev
+				if (a1 gt 512)then print,"invalid point clicked"
+				wait,1 ;(Avoiding double clicks)
+			endwhile
+			xnew = a1*resolution
+			bnew = b1*resolution
+		endif
+		h1 = set_limits(new_im, xnew, ynew, 20, resolution, xmin = xmin, ymin = ymin)
+		siz = size(h1, /dimensions)
+		wshow,1
+		wset,1
+		tv,bytscl(rebin(h1,siz[0]*2,siz[1]*2), 0, new_max_value)
+		plots,(xnew - xmin)*2, (ynew - ymin)*2,/dev,/psym,thick=2,symsize=3,col=255
+		
+		read,"Is the position of the star ok in the zoomed image? (default is y)",ans
+		if (ans eq 'n')then begin
+			print,"Please click on the desired pixel in the zoomed image"
+			wset,1
+			wshow
+			cursor,/dev,a1,b1
+			xnew = a1 + xmin
+			ynew = b1 + ymin
+			wset,0
+		endif
+
 		if (nnewstars gt 0)then begin
 			dref = sqrt((xstar - ref_xstar)^2 + (ystar - ref_ystar)^2)
 			dnew = sqrt((xnew - newxp[0])^2 + (ynew - newyp[0])^2)
 			print,"Distance between stars is: ",dref," and ",dnew," pixels."
 		endif
-		read,"Shall we include this star",ans
+		wset,0
+		display_image, new_im, new_max_value, xnew, ynew, 0, 0
+		read,"Shall we include this star (default is 'y')",ans
+		if (ans eq "")then ans="y"
 		if (ans eq 'y')then begin
 			if (nnewstars eq 0)then begin
 				newxp     = xnew
@@ -458,10 +486,10 @@ begin_corr:
 				ref_ystar = ystar
 			endif else begin
 				if (abs(dref - dnew) le 5)then begin
-					newxp     = [newxp, xstar]
-					newyp 	  = [newyp, ystar]
-					newra     = [newra, refra[istar]]
-					newdec    = [newdec, refdec[istar]]
+					newxp     = [newxp, xnew]
+					newyp 	  = [newyp, ynew]
+					newra     = [newra, ref_ra]
+					newdec    = [newdec, ref_dec]
 					nnewstars = nnewstars + 1
 				endif
 			endelse
