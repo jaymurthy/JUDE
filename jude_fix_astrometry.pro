@@ -187,6 +187,7 @@ function check_star_position, new_im, xstar, ystar, new_max_value, xmin, ymin
 	display_image, new_im, new_max_value, xstar, ystar, 0, 0
 	wset,1
 	erase
+	siz = size(h1, /dimensions)
 	tv,bytscl(rebin(h1,siz[0]*(640/siz[0]),siz[1]*(640/siz[1])) ,0,new_max_value)
 	plots,(xstar - xmin)*(640/siz[0]),(ystar - ymin)*(640/siz[1]),/psym,symsize=3,col=255,/dev
 	
@@ -401,7 +402,10 @@ endif
 	
 ;If we have already defined the stars to be used for astronometry
 begin_corr:
+;restart if we coudn't get enough points.
+	if (nnewstars lt 2)then nnewstars = 0
 	while (nnewstars lt 2)do begin
+		print,"Selected ",nnewstars," stars. Require minimum of 2." 
 		print,"Please select points by hand"
 		a1 = 0
 		while (a1 lt 512)do begin
@@ -485,12 +489,17 @@ begin_corr:
 				ref_xstar = xstar
 				ref_ystar = ystar
 			endif else begin
-				if (abs(dref - dnew) le 5)then begin
-					newxp     = [newxp, xnew]
-					newyp 	  = [newyp, ynew]
-					newra     = [newra, ref_ra]
-					newdec    = [newdec, ref_dec]
-					nnewstars = nnewstars + 1
+				if (abs(dref - dnew) ge 5)then begin
+					print,"Distance is ",abs(dref - dnew)," pixels.
+					read,"Are you sure? (default is y)",ans
+					if (ans eq "")then ans = 'y'
+					if (ans eq 'y')then begin
+						newxp     = [newxp, xnew]
+						newyp 	  = [newyp, ynew]
+						newra     = [newra, ref_ra]
+						newdec    = [newdec, ref_dec]
+						nnewstars = nnewstars + 1
+					endif
 				endif
 			endelse
 		endif

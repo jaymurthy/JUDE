@@ -57,6 +57,8 @@
 ;JM: Nov.  7, 2017: Cosmetic changes.
 ;JM: Nov. 25, 2017: Correct if a1 was not finite.
 ;JM: Dec. 25, 2017: File will append.
+;JM: Feb. 23, 2018: Removed optional detector. Will now take from first file.
+;JM: Feb. 27, 2018: Modified to use less memory.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -86,10 +88,25 @@ function dotp, x1, y1, z1, x2, y2, z2
 end
 
 pro jude_light_curve, dir, out_file, object_ra, object_dec, $
-					bkgd_ra, bkgd_dec, radius, bin, filter = filter, $
-					detector = detector
+					bkgd_ra, bkgd_dec, radius, bin, $
+					filter = filter, detector = detector, $
+					params = params
 
 ;***********************     INITIALIZATION   **************************
+	if (n_elements(params) eq 0) then params = jude_params()
+	if (n_elements(dir) eq 0) then begin
+		dir =""
+		read,"Enter directory for input files: ", dir
+	endif
+	files = file_search(dir, "*.fits.gz", count = nfiles)
+	if (nfiles eq 0)then begin
+		print,"No files found in ",dir
+		goto,noproc
+	endif
+	if (n_elements(out_file) eq 0)then begin
+		out_file = ""
+		read,"Enter output file: ",out_file
+	endif
 	if (n_elements(object_ra)  eq 0)then read,"Central RA  in degrees: ", object_ra
 	if (n_elements(object_dec) eq 0)then read,"Central DEC in degrees: ", object_dec
 	if (n_elements(bkgd_ra)    eq 0)then read,"Bkgd RA in degrees: ",     bkgd_ra
@@ -102,8 +119,7 @@ pro jude_light_curve, dir, out_file, object_ra, object_dec, $
 	bkgd_dec   = double(bkgd_dec)
 	radius = double(radius)/3600.
 	openw,write_lun,out_file,/get
-	if (detector eq "NUV")then nfiles = jude_get_files(dir, files, /nuv) else $
-		nfiles = jude_get_files(dir, files, /fuv)
+
 ;************************* END INITIALIZATION ***************************	
 
 ;Cartesian coordinates
@@ -120,7 +136,10 @@ pro jude_light_curve, dir, out_file, object_ra, object_dec, $
 		obsfilt = strcompress(sxpar(d2_hdr,"FILTER"), /rem)
 		obsdet  = strcompress(sxpar(d2_hdr,"DETECTOR"), /rem)
 		if (n_elements(filter) eq 0)then filter = obsfilt
-		if (n_elements(detector) eq 0)then detector = obsdet
+		if (n_elements(detector) eq 0)then begin
+			detector = obsdet
+			print,"Using ",detector," and ",obsfilt
+		endif
 		if ((astr_done eq "TRUE") and (obsfilt eq filter) and $
 			(obsdet eq detector)  and (xtension eq "BINTABLE"))then begin
 			ndata = ndata + long(sxpar(d2_hdr, "NAXIS2")) 
@@ -129,6 +148,8 @@ pro jude_light_curve, dir, out_file, object_ra, object_dec, $
 	endfor
 
 print,"Starting file read."
+	time0 = systime(1)
+
 ;Now read the files
 	if (ndata eq 0)then begin
 		print,"No data found"
@@ -136,19 +157,43 @@ print,"Starting file read."
 	endif
 	q = where(good_files eq 1, nfiles)
 	files = files[q]
-	d = mrdfits(files[0], 1, d2_hdr, /silent)
-	data_l2 = replicate(d[0], ndata)
-	npoints = n_elements(d)
 	index = 0l
-	data_l2[index:index + npoints - 1] = d
-	index = index + npoints
-	for ifile = 1, nfiles - 1 do begin
+	data_l2 = {d2, time:0d, nsrc:0, nbkg:0}
+	data_l2 = replicate(data_l2, ndata)
+	npoints = 0l
+	for ifile = 0, nfiles - 1 do begin
 		print,"Reading file ",ifile," of ",nfiles,string(13b),format='(a,i5,a,i5,a,$)'
 		d = mrdfits(files[ifile], 1, d2_hdr, /silent)
-		npoints = n_elements(d)
-		data_l2[index:index + npoints - 1] = d
+		q = where((d.dqi eq 0) and (d.nevents gt 0), nq)
+		if (nq gt 10)then begin
+			dave = median(d[q].nevents)
+			dstd = sqrt(dave)
+			params.max_counts = dave + dstd*3
+		endif else params.max_counts = 1000
+		q = where((d.dqi eq 0) and (d.nevents gt 2) and (d.nevents lt params.max_counts), npoints)
+		d = d[q]
+		for ipoint = 0l, npoints - 1 do begin
+			idata = index + ipoint
+			cartesian, d[ipoint].roll_ra, d[ipoint].roll_dec,$
+					   xroll, yroll, zroll
+			dcheck = dotp(xroll, yroll, zroll, object_x, object_y, object_z)
+			if (dcheck lt 0.2)then begin
+				nevents = d[ipoint].nevents
+				cartesian, d[ipoint].ra[0:nevents - 1],d[ipoint].dec[0:nevents - 1],$
+						   x, y, z
+				dobj = dotp(x, y, z, object_x, object_y, object_z)
+				dbkg = dotp(x, y, z, bkgd_x, bkgd_y, bkgd_z)
+				q1 = where(dobj le radius, nq1)
+				q2 = where(dbkg le radius, nq2)
+				data_l2[idata].time = d[ipoint].time
+				data_l2[idata].nsrc = nq1
+				data_l2[idata].nbkg = nq2
+			endif
+		endfor
 		index = index + npoints
 	endfor
+	q = where(data_l2.time gt 0)
+	data_l2 = data_l2[q]
 	min_time = min(data_l2.time)
 	max_time = max(data_l2.time)
 	nbins   = long((max_time - min_time)/bin) + 1
@@ -156,27 +201,18 @@ print,"Starting file read."
 	src_cts = lonarr(nbins)
 	bkg_cts = lonarr(nbins)
 	nframes = lonarr(nbins)
-
-	q = where((data_l2.dqi eq 0) and (data_l2.nevents gt 0),ndata)
-	data_l2 = data_l2[q]
-print,"Starting binning"
-time0 = systime(1)
+	s = sort(data_l2.time)
+	data_l2 = data_l2[s]
 ;Finally add the points together
-	for idata = 0l, ndata - 1 do begin
-		if ((idata mod 1000) eq 1)then print,float(ndata - idata)/float(idata)*(systime(1) - time0),string(13b),format='(i6,a,$)'
-		cartesian, data_l2[idata].roll_ra, data_l2[idata].roll_dec,xroll, yroll, zroll
-		dcheck = dotp(xroll, yroll, zroll, object_x, object_y, object_z)
-		if (dcheck lt 0.2)then begin
-			nevents = data_l2[idata].nevents
-			cartesian, data_l2[idata].ra[0:nevents - 1],data_l2[idata].dec[0:nevents - 1],x,y,z
-			dobj = dotp(x, y, z, object_x, object_y, object_z)
-			dbkg = dotp(x, y, z, bkgd_x, bkgd_y, bkgd_z)
-			q1 = where(dobj le radius, nq1)
-			q2 = where(dbkg le radius, nq2)
-			ibin = max(Where(times lt data_l2[idata].time))
-			src_cts[ibin] = src_cts[ibin] + nq1
-			bkg_cts[ibin] = bkg_cts[ibin] + nq2
-			nframes[ibin] = nframes[ibin] + 1
+	istart = 0
+	for ibin = 0l, nbins - 2 do begin
+		q = where((data_l2[istart:*].time gt times[ibin]) and $
+				  (data_l2[istart:*].time le times[ibin + 1]), nq)
+		if (nq gt 0)then begin
+			src_cts[ibin] = src_cts[ibin] + total(data_l2[istart + q].nsrc)
+			bkg_cts[ibin] =	bkg_cts[ibin] + total(data_l2[istart + q].nbkg)
+			nframes[ibin] = nframes[ibin] + nq
+			istart = istart + min(q)
 		endif
 	endfor
 	
