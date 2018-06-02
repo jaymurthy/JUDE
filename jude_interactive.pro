@@ -645,9 +645,10 @@ print,"Starting centroid"
 				print,"Do you want to run with different parameters?"
 				ans=get_kbrd(1)
 			endif else ans = "n"
-			if (ans ne 'r')then begin
+			if (ans eq 'r')then begin
 				data_l2   = mrdfits(data_file,1,data_hdr0,/silent)
-			endif else if (ans eq 'r') then ans = 'y'
+			endif
+			if (ans eq 'r') then ans = 'y'
 			data_l2.xoff = xoff_sc
 			data_l2.yoff = yoff_sc
 			data_l2.dqi = save_dqi

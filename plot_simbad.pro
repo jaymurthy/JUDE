@@ -95,6 +95,16 @@ function read_simbad_stars,  names, ra, dec, stype, mag, xtest, ytest, ztest
 		endif
 	endfor
 
+;Get rid of sources where we have no magnitude
+	s = where(mag lt 20, ns)
+	if (ns gt 0)then begin
+		ra    = ra[s]
+		dec   = dec[s]
+		stype = stype[s]
+		mag   = mag[s]
+		names = names[s]
+	endif
+		
 ;Order by magnitude remembering that the brightest have the least magnitude.
 	s = sort(mag)
 	ra    = ra[s]
@@ -142,9 +152,6 @@ pro find_point_sources, new_im, x, y, f,new_max_value,xoff,yoff
 		y = y[q]
 		f = f[q]
 	endif
-	tv,bytscl(rebin(new_im,512,512),0,new_max_value),xoff,yoff
-	plots,/dev,x/resolution+xoff,y/resolution+yoff,/psym,$
-			col=65535,symsize=3
 	
 end
 ;**********************END FIND_POINT_SOURCES **********************
@@ -179,12 +186,48 @@ function set_limits, grid2, xstar, ystar, boxsize, resolution,$
 	endif else h1 = grid2[xmin:xmax, ymin:ymax]
 	return,h1
 end
+
+function check_star_position, new_im, xstar, ystar,new_max_value, xmin, ymin
+	boxsize = 20
+	siz = size(new_im, /dimension)
+	resolution = siz[0]/512
+	
+	h1 = set_limits(new_im, xstar, ystar, boxsize, resolution, xmin = xmin, ymin = ymin)
+	siz = size(h1, /dimensions)
+	r1 = mpfit2dpeak(h1, a1)
+	if (finite(a1[4]) and finite(a1[5]))then begin
+		xstar = xmin + a1[4]
+		ystar = ymin + a1[5]
+	endif else begin
+		tcent = total(h1)
+		xcent = total(total(h1, 2)*indgen(siz[0]))/tcent
+		ycent = total(total(h1, 1)*indgen(siz[1]))/tcent
+		xstar = xmin + xcent
+		ystar = ymin + ycent
+	endelse
+	boxsize = 5
+	h1 = set_limits(new_im, xstar, ystar, boxsize, resolution, xmin = xmin, ymin = ymin)
+	siz = size(h1, /dimensions)
+	r1 = mpfit2dpeak(h1, a1)
+	if (finite(a1[4]) and finite(a1[5]) and (a1[1] gt 0))then begin
+		xstar = xmin + a1[4]
+		ystar = ymin + a1[5]
+		star_found = 1
+	endif else begin
+		star_found = 0
+	endelse
+	tv,bytscl(rebin(h1,siz[0]*(512/siz[0]),siz[1]*(512/siz[1])) ,0,new_max_value),512,0
+	plots,(xstar - xmin)*(512/siz[0]),(ystar - ymin)*(512/siz[1]),/psym,symsize=3,col=255,/dev,thick=2
+
+wset,0
+	return,star_found
+end
+
 ;*****************END DISPLAY PROGRAMS***************************
 
-pro plot_simbad, ref_file,  refra, refdec, refx, refy, ref_max_value = ref_max_value
+pro plot_simbad, ref_file,  galex_file, refra, refdec, refx, refy, ref_max_value = ref_max_value
 
 ;Initialization
-	if (n_elements(ref_max_value) eq 0)then ref_max_value = 0.01
 	device,window_state = window_state
 	if (window_state[0] eq 0)then $
 			window, 0, xs = 1024, ys = 512, xp = 10, yp = 500
@@ -197,50 +240,118 @@ pro plot_simbad, ref_file,  refra, refdec, refx, refy, ref_max_value = ref_max_v
 
 	siz = size(ref_im, /dimensions)
 	resolution = siz[0]/512
-	ra = sxpar(ref_hdr, "RA_PNT")
-	dec = sxpar(ref_hdr, "DEC_PNT")
-	sxaddpar,ref_hdr,"CRVAL1",ra
-	sxaddpar,ref_hdr,"CRVAL2",dec
-	sxaddpar,ref_hdr,"CRPIX1",512*resolution/2
-	sxaddpar,ref_hdr,"CRPIX2",512*resolution/2
-	sxaddpar,ref_hdr,"CDELT1",-0.000911456/resolution
-	sxaddpar,ref_hdr,"CDELT2",0.000911456/resolution
-	sxaddpar,ref_hdr,"CTYPE1","RA---TAN"
-	sxaddpar,ref_hdr,"CTYPE2","DEC--TAN"
+;Has atrometry been done?
+	if (strcompress(sxpar(ref_hdr, "ASTRDONE"),/rem) ne "TRUE")then begin
+		ans=''
+		ra = sxpar(ref_hdr, "RA_PNT")
+		dec = sxpar(ref_hdr, "DEC_PNT")
+		sxaddpar,ref_hdr,"CRVAL1",ra
+		sxaddpar,ref_hdr,"CRVAL2",dec
+		sxaddpar,ref_hdr,"CRPIX1",512*resolution/2
+		sxaddpar,ref_hdr,"CRPIX2",512*resolution/2
+		sxaddpar,ref_hdr,"CDELT1",-0.000911456/resolution
+		sxaddpar,ref_hdr,"CDELT2",0.000911456/resolution
+		sxaddpar,ref_hdr,"CTYPE1","RA---TAN"
+		sxaddpar,ref_hdr,"CTYPE2","DEC--TAN"
+	endif else begin
+		ra  = sxpar(ref_hdr, "CRVAL1")
+		dec = sxpar(ref_hdr, "CRVAL2")
+	endelse
 	extast, ref_hdr, ref_astr
-	ref_time = mrdfits(ref_file, 1, ref_thdr, /silent)
+
+;Change image scale	
 	ans='y'
+	if (n_elements(ref_max_value) eq 0)then ref_max_value = 0.0002 else $
+		ans = 'n'
+
 	while (ans eq 'y')do begin
 		tv,bytscl(rebin(ref_im,512,512), 0, ref_max_value),0,0
-		print,"Change scale? "
-		ans = get_kbrd(1)
-		if (ans eq 'y')then read,"New scale factor: ",ref_max_value
+		ans_val = ""
+		read,"Enter new scale; Press return if none ",ans_val
+		if (ans_val ne "")then ref_max_val = float(ans_val) else ans='n'
 	endwhile
 	
 ;Read stars from simbad using the file I've already created. The name
 ;of the file must be simbad.csv, just because it was easier.
 	nstars = read_simbad_stars(names, ra, dec, stype, mag, xtest, ytest, ztest)
-
+	ad2xy,ra,dec,ref_astr,xsimb,ysimb
+	plots,/dev,/psym,col=255,thick=2,xsimb/resolution,ysimb/resolution
+	
+	newxp = fltarr(3)
+	newyp = fltarr(3)
+	ans = ""
+	read,"Would you like to modify the astrometry?",ans
+	if (ans eq "y")then begin
+		a = 1000
+		while (a gt 512) do begin
+			print,"Select star"
+			cursor,a,b,/dev & print,a,b
+			if (a gt 512)then print,"Invalid point clicked"
+			wait,1 ;(Avoiding double clicks)
+		endwhile
+		a = a*resolution
+		b = b*resolution
+		star_found = check_star_position(ref_im, a, b, ref_max_value, xmin, ymin)
+		newxp[0] = a
+		newyp[0] = b
+	endif
+	
+stop	
+;Now find point sources in the image.
 	find_point_sources, ref_im, refxp, refyp, reffp, ref_max_value, 0, 0
+	dxp = sqrt((refxp/resolution - 256)^2 + (refyp/resolution - 256)^2)
+;Our preference is sources near the center.
+	q = where(dxp lt 256, nq)
+	if (nq gt 0)then begin
+		dxp   = dxp[q]
+		refxp = refxp[q]
+		refyp = refyp[q]
+		reffp = reffp[q]
+	endif
+	q = sort(dxp)
+	dxp   = dxp[q]
+	refxp = refxp[q]
+	refyp = refyp[q]
+	reffp = reffp[q]
 	nsources = n_elements(refxp)
-	tv,bytscl(rebin(ref_im,512,512), 0, ref_max_value),512,0
-	ad2xy,ra,dec,ref_astr,refx,refy
-	q=where((refx gt 0) and (refx/resolution lt 512) and $
-			(refy gt 0) and (refy/resolution lt 512), nq)
-	if (nq gt 0)then $
-	plots,/dev,refx[q]/resolution,refy[q]/resolution,psym=4,symsize=3,col=255
+
+;Now to find possible identifications
+	if (nsources gt 1) then begin
+		refang = sqrt((refxp[1] - refxp[0])^2 + (refyp[1] - refyp[0])^2)
+;Are there any Simbad sources which match this angle
+		nsimb = n_elements(xsimb)
+		grid_simb = fltarr(nsimb, nsimb)
+		for i = 0, nsimb - 2 do begin
+			for j = i+1, nsimb - 1 do begin
+				grid_simb[i, j] = $
+				sqrt((xsimb[i] - xsimb[j])^2 + (ysimb[i] - ysimb[j])^2)
+		   endfor
+	   endfor
+	   dst=where(abs(grid_simb -refang) lt 10, ndst)
+	   if (ndst gt 0)then begin
+;Let's try solving and see where we get
+			for isimb = 0, nsimb - 1 do begin
+				x1 = dst[isimb] mod nsimb
+				y1 = dst[isimb]/nsimb
+				newra  =  [ra[x1], ra[y1]]
+				newdec =  [dec[y1], dec[y1]]
+				newxp = [refxp[0], refxp[1]]
+				newyp = [refyp[0], refyp[1]]
+				new_hdr = ref_hdr
+				starast, newra, newdec, newxp, newyp, cd, hdr=new_hdr,/right
+				extast,new_hdr,new_astr
+			stop
+			endfor
+		endif
+		
+	stop
+	endif
 	
 	grid_sources = fltarr(nsources, nsources)
 	for i = 0, nsources - 1 do $
 		for j=0, nsources - 1 do $
 			grid_sources[i, j] = $
 				sqrt((refxp[i] - refxp[j])^2 + (refyp[i] - refyp[j])^2)
-	nsimb = n_elements(ra)
-	grid_simb = fltarr(nsimb, nsimb)
-	for i = 0, nsimb - 1 do $
-		for j=0, nsimb - 1 do $
-			grid_simb[i, j] = $
-				sqrt((refx[i] - refx[j])^2 + (refy[i] - refy[j])^2)
 				
 ;Let's see if we can get matches
 	for isource = 0, nsources - 2 do begin

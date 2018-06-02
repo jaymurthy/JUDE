@@ -21,6 +21,7 @@
 ; MODIFICATION HISTORY:
 ;	JM: Aug. 18, 2017
 ;	JM: Jan. 20, 2018
+;	JM: May  31, 2018: Bug if there were three points
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -131,7 +132,7 @@ function read_image_data, new_file, ref_file, new_im, new_time, new_hdr, ref_im,
 return,1
 end
 
-function check_star_position, new_im, xstar, ystar,new_max_value
+function check_star_position, new_im, xstar, ystar,new_max_value, xmin, ymin
 	boxsize = 20
 	siz = size(new_im, /dimension)
 	resolution = siz[0]/512
@@ -177,12 +178,12 @@ star_pos = star_pos
 
 ;Initialization
 	if (n_elements(new_max_value) eq 0)then new_max_value = 0.0002
-	if (n_elements(ref_max_value) eq 0)then ref_max_value = 0.0002
+	if (n_elements(ref_max_value) eq 0)then ref_max_value = 0.002
 	device, window_state = window_state
 	if (window_state[0] eq 0)then $
 		window, 0, xs = 1024, ys = 512, xp = 10, yp = 500
 	if (window_state[0] eq 0)then $
-		window, 1, xs = 640,  ys = 640
+		window, 1, xs = 640,  ys = 640,yp = 600
 	wset,0
 
 ;Read data from image files
@@ -193,8 +194,8 @@ star_pos = star_pos
 	
 ;Assume that the pixels are square
 	ref_naxis = size(ref_im, /dimensions)
-	cdelt1 = sxpar(ref_hdr,"CDELT2")
-	uvit_scale = 28./60./4096. 
+	cdelt1 = sxpar(ref_hdr,"CDELT2")*3600.
+	uvit_scale = 28.*60./4096. 
 
 ;I'VE USED THREE POINTS FOR THE ASTROMETRIC CORRECTION. ONE MAY WANT MORE.
 	npoints = 0
@@ -206,85 +207,110 @@ star_pos = star_pos
 	newxp = xref
 	newyp = xref
 	
-	while (npoints lt maxnpoints)do begin
-		a = 0
-		print,"Identify the same objects in both images"
-		while (a lt 512) do begin
-			print,"First on the right"
-			cursor,a,b,/dev & print,a,b
-			if (a lt 512)then print,"Invalid point clicked"
-			wait,1 ;(Avoiding double clicks)
-		endwhile
-		xref[npoints] = (a - 512)*rxscale
-		yref[npoints] = b*ryscale
+	
+;Let's pick two stars in the UVIT image
+	print,"Select two stars in the UVIT image (on the left)"
+	a = 1000
 		while (a gt 512) do begin
-			print,"Now on the left"
+			print,"On the left"
 			cursor,a,b,/dev & print,a,b
 			if (a gt 512)then print,"Invalid point clicked"
 			wait,1 ;(Avoiding double clicks)
 		endwhile
-		newxp[npoints] = a*nxscale
-		newyp[npoints] = b*nyscale
-		npoints = npoints + 1
-	endwhile
-	
-
-;Now let's do better
-;The UVIT field is 0.5 degree so we can't go more than that in any direction
-	xmin = (min(xref) - 0.25/cdelt1) > 0
-	xmax = (max(xref) + 0.25/cdelt1) < ref_naxis[0]
-	ymin = (min(yref) - 0.25/cdelt1) > 0
-	ymax = (max(yref) + 0.25/cdelt1) < ref_naxis[1]
-	ref_newim = ref_im[xmin:xmax, ymin:ymax]
-
-	print,"Checking selections."
-	for istar = 0, npoints - 1 do begin
-		ans = "n"
-		while (ans eq 'n')do begin
-			xtemp = xref[istar] - xmin
-			ytemp = yref[istar] - ymin
-			display_image,ref_newim, ref_max_value, xtemp, ytemp, 512, 0
-			star_found = check_star_position(ref_newim, xtemp, ytemp,ref_max_value)
-			xref[istar] = xtemp + xmin
-			yref[istar] = ytemp + ymin
-			if (istar gt 0)then begin
-				dref = sqrt((xref[istar] - xref[0])^2 + (yref[istar] - yref[0])^2)*cdelt1*3600
-				dnew = sqrt((newxp[istar] - newxp[0])^2 + (newyp[istar] - newyp[0])^2)*uvit_scale*3600
-				print,"Distance between stars is: ",dref," and ",dnew," arcseconds"
-			endif
-			a = 0
-			read,"Is this star ok? ",ans
-			if (ans eq "n")then begin
-				while (a lt 512) do begin
-					print,"Pick object on the right"
-					cursor,a,b,/dev & print,a,b
-					if (a lt 512)then print,"Invalid point clicked"
-					wait,1 ;(Avoiding double clicks)
-				endwhile
-				xref[istar] = (a - 512)*rxscale
-				yref[istar] = b*ryscale
-			endif
-			xtemp = newxp[istar]
-			ytemp = newyp[istar]
-			display_image,new_im, new_max_value, xtemp, ytemp, 0, 0
-			star_found = check_star_position(new_im, xtemp, ytemp, new_max_value)
-			newxp[istar] = xtemp
-			newyp[istar] = ytemp
-			read,"Is this star ok? ",ans
-			if (ans eq "n")then begin
-				while (a gt 512) do begin
-					print,"Pick object on the left"
-					cursor,a,b,/dev & print,a,b
-					if (a gt 512)then print,"Invalid point clicked"
-					wait,1 ;(Avoiding double clicks)
-				endwhile
-				newxp[istar] = a*nxscale
-				newyp[istar] = b*nyscale
-			endif
-			ans = "y"
+		a = a*nxscale
+		b = b*nyscale
+		star_found = check_star_position(new_im, a, b, new_max_value, xmin, ymin)
+		newxp[0] = a
+		newyp[0] = b
+		a=1000
+		while (a gt 512) do begin
+			print,"Second star on the left"
+			cursor,a,b,/dev & print,a,b
+			if (a gt 512)then print,"Invalid point clicked"
+			wait,1 ;(Avoiding double clicks)
 		endwhile
-	endfor	
+		a = a*nxscale
+		b = b*nyscale
+		star_found = check_star_position(new_im, a, b, new_max_value, xmin, ymin)
+
+		newxp[1] = a
+		newyp[1] = b
+		duvit = sqrt((newxp[1] - newxp[0])^2 + (newyp[1] - newyp[0])^2)*uvit_scale
 	
+;Now pick GALEX stars
+pickgalex:
+		print,"Pick the same two GALEX stars (on the right)."
+		a = 0
+		while (a lt 512) do begin
+			print,"Pick first Galex star on the right."
+			cursor,a,b,/dev & print,a,b
+			if (a lt 512)then print,"Invalid point clicked"
+			wait,1 ;(Avoiding double clicks)
+		endwhile
+		a = (a - 512)*rxscale
+		b = b*ryscale
+		star_found = check_star_position(ref_im, a, b, ref_max_value, xmin, ymin)
+		xref[0] = a
+		yref[0] = b
+		a=0
+		while (a lt 512) do begin
+			print,"Pick second Galex star on the right."
+			cursor,a,b,/dev & print,a,b
+			if (a lt 512)then print,"Invalid point clicked"
+			wait,1 ;(Avoiding double clicks)
+		endwhile
+		a = (a - 512)*rxscale
+		b = b*ryscale
+		star_found = check_star_position(ref_im, a, b, ref_max_value, xmin, ymin)
+		xref[1] = a
+		yref[1] = b
+		dgalex = sqrt((xref[1] - xref[0])^2 + (yref[1] - yref[0])^2)*cdelt1
+		print,"UVIT separation in arcseconds is: ",duvit
+		print,"Galex separation in arcseconds is: ",dgalex
+		ans="y"
+		read,"Are these two stars ok? If not let's pick two different stars.",ans
+		if (ans eq "n")then goto,pickgalex
+npoints = 2
+;Add a third star
+pickgalex2:
+read,"Is there a third star (n if there is none)",ans
+	if (ans ne 'n')then begin
+		a = 1000
+		while (a gt 512) do begin
+			print,"Pick the third UVIT star (on the left)."
+			cursor,a,b,/dev & print,a,b
+			if (a gt 512)then print,"Invalid point clicked"
+			wait,1 ;(Avoiding double clicks)
+		endwhile
+		a = a*nxscale
+		b = b*nyscale
+		star_found = check_star_position(new_im, a, b, new_max_value, xmin, ymin)
+		newxp[2] = a
+		newyp[2] = b
+		a = 0
+		while (a lt 512) do begin
+			print,"Pick the third Galex star (on the right)."
+			cursor,a,b,/dev & print,a,b
+			if (a lt 512)then print,"Invalid point clicked"
+			wait,1 ;(Avoiding double clicks)
+		endwhile
+		a = (a - 512)*rxscale
+		b = b*ryscale
+		star_found = check_star_position(ref_im, a, b, new_max_value, xmin, ymin)
+		xref[2] = a
+		yref[2] = b
+		duvit = sqrt((newxp[2] - newxp[0])^2 + (newyp[2] - newyp[0])^2)*uvit_scale
+		dgalex = sqrt((xref[2] - xref[0])^2 + (yref[2] - yref[0])^2)*cdelt1
+		print,"UVIT separation in arcseconds is: ",duvit
+		print,"Galex separation in arcseconds is: ",dgalex
+		ans="y"
+		read,"Is this star ok? If not let's pick a different stars.",ans
+		if (ans eq "n")then goto,pickgalex2 else npoints = 3
+	endif
+	xref = xref[0:npoints - 1]
+	yref = yref[0:npoints - 1]
+	newxp = newxp[0:npoints - 1]
+	newyp = newyp[0:npoints - 1]
 	xyad, ref_hdr, xref, yref, newra, newdec	
 ;If we have already defined the stars to be used for astronometry
 begin_corr:
@@ -293,10 +319,10 @@ begin_corr:
 		astr = solve_astro(newra, newdec, newxp, newyp, distort = 'tnx')
 		putast, new_hdr, astr
 	endif else if (n_elements(newra) gt 2)then begin
-		newra  = newra[0:2]
-		newdec = newdec[0:2]
-		newxp = newxp[0:2]
-		newyp = newyp[0:2]			
+		newra  = newra[0:npoints-1]
+		newdec = newdec[0:npoints-1]
+		newxp = newxp[0:npoints-1]
+		newyp = newyp[0:npoints-1]			
 		starast, newra, newdec, newxp, newyp, cd, hdr=new_hdr
 	endif else if (n_elements(newra) eq 2)then begin
 		starast, newra, newdec, newxp, newyp, cd, hdr=new_hdr,/right

@@ -122,8 +122,9 @@ function read_image_data, new_file, ref_file, new_im, new_time, new_hdr, ref_im,
 	q=where(ref_time eq 0,nq)
 	if (nq gt 0)then ref_im[q] = 0
 	if (strcompress(sxpar(ref_hdr, "ASTRDONE"),/rem) ne "TRUE")then begin
-		print,"No astrometry done on reference image"
-		return, 0
+		ans=''
+		read,"No astrometry done on reference image,continue",ans
+		if (ans ne 'y')then return, 0
 	endif
 	if (strcompress(sxpar(new_hdr, "ASTRDONE"),/rem) eq "TRUE")then begin
 		ans=''
@@ -263,6 +264,7 @@ print,"Version date: Jan. 26, 2018"
 	endif else begin
 		ref_astr_new = ref_astr
 		ref_new = ref_im
+		ref_hdr_new = ref_hdr
 	endelse
 	if (n_elements(star_pos) eq 2)then $
 		ad2xy, star_pos[0], star_pos[1], ref_astr_new, star_posx, star_posy

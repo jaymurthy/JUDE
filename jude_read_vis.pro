@@ -17,6 +17,7 @@
 ;	JM: Nov. 8, 2017: Freed memory
 ;	JM: Nov.  9, 2017 : I don't want to repeat checks of the same file.
 ;	JM: Nov.  9, 2017 : Assume all successful files are gzipped.
+;	JM: Jun   1, 2018: Syntax error which did not seem to affect GDL
 
 ;COPYRIGHT
 ;Copyright 2016 Jayant Murthy
@@ -49,7 +50,7 @@ pro jude_read_vis, file, vis_dir, start_file = start_file, overwrite = overwrite
 time0 = systime(1)		
 ;Check for existence of file
 		fname = file_basename(file(ifile))
-		print,ifile,fname,format="(i5,1x,a,)"
+		print,ifile,fname,format="(i5,1x,a)"
 		fname = strmid(fname, 0, strpos(fname,".fits"))
 		fout = vis_dir + fname + "_" + string(ifile) + ".fits"
 		fout = strcompress(fout,/remove)
