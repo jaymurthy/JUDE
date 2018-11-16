@@ -50,6 +50,7 @@
 ;	JM: Jan  03, 2018 : Added option to reset offsets
 ;	JM: Jan. 16, 2018 : Interface changes.
 ;	JM: Jan. 20, 2018 : Added median filter to offsets.
+;   KS: Nov, 01, 2018 : Modified check_params such that boxsize can be edited. Also made ans_val long to avoid overflow errors.
 ;Copyright 2016 Jayant Murthy
 ;
 ;   Licensed under the Apache License, Version 2.0 (the "License");
@@ -137,8 +138,8 @@ function check_params, params
 			print,i," ",tgs[i]," ",params.(i)
 		print,"Parameter to change?"
 		read,"-1 to continue, -2 to exit, -3 to debug: ",ans_no
-		if ((ans_no ge 0) and (ans_no le 6))then begin
-			ans_val = 0
+		if ((ans_no ge 0) and (ans_no le 6)) or (ans_no eq 9))then begin
+			ans_val = 0l
 			read,"New value?",ans_val
 			params.(ans_no) = ans_val
 		endif
