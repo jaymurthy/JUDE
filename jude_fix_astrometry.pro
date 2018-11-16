@@ -335,7 +335,7 @@ ans=""
 				print,"Select star in the left image."
 				cursor,xstar,ystar,/dev & xstar = xstar*resolution & ystar = ystar*resolution
 				star_found = check_star_position(new_im, xstar, ystar,new_max_value)
-				print,"Is star ok?
+				print,"Is star ok?"
 				read,ans
 			endif
 
@@ -492,7 +492,7 @@ begin_corr:
 				ref_ystar = ystar
 			endif else begin
 				if (abs(dref - dnew) ge 5)then begin
-					print,"Distance is ",abs(dref - dnew)," pixels.
+					print,"Distance is ",abs(dref - dnew)," pixels."
 					read,"Are you sure? (default is y)",ans
 					if (ans eq "")then ans = 'y'
 					if (ans eq 'y')then begin

@@ -383,7 +383,7 @@ if (do_not_do_this eq 0)then begin
 		endif else begin
 ;************NOTE THAT THE /NOTIMES WILL BE REMOVED FOR FINAL PRODUCTION********
 			flat_version = "No flat fielding done "
-			distort_version = "No distortion correction done
+			distort_version = "No distortion correction done"
 			sxaddhist, flat_version, out_hdr
 			sxaddhist, distort_version, out_hdr
 		endelse			
