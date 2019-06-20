@@ -29,7 +29,7 @@ if (n_elements(fuv_only) gt 0)then nf=0
 ;read, "which file number: ",ifile
 for ifile = start_file, nf - 1 do $
 JUDE_INTERACTIVE,files[ifile], uv_base_dir, data, grid, offsets, $
-             params = params, max_im_value = max_im_value, notime = notime
+             params = params, max_im_value = max_im_value
 
 ;Repeat for FUV files.
 ;Reset parameters.
@@ -47,4 +47,4 @@ if (n_elements(nuv_only) gt 0)then nf=0
 ;read, "which file number: ",ifile
 for ifile = start_file, nf - 1 do $
 JUDE_INTERACTIVE,files[ifile], uv_base_dir, data, grid, offsets, $
-            params = params, max_im_value = max_im_value, notime = notime
+            params = params, max_im_value = max_im_value
